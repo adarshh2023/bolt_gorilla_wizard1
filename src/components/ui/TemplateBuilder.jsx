@@ -1,8 +1,9 @@
 // TemplateBuilder.jsx - Drag and drop template builder for room layouts
-import React, { useState, useCallback } from 'react';
-import { X, Save, Plus, Trash2, Move, Home, Bed, Bath, Car, Utensils, Sofa, TreePine, Building, Users, Briefcase } from 'lucide-react';
+import React, { useState, useCallback,useEffect } from 'react';
+import { X, Save, Plus, Trash2, Move, Home, Bed, Bath, Car, Utensils, Sofa, TreePine, Building, Users, Briefcase, Settings, CheckSquare } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
+import Select from './Select';
 
 const ROOM_TYPES = {
   living_room: { icon: Sofa, label: 'Living Room', color: 'bg-blue-100 border-blue-300 text-blue-800' },
@@ -21,6 +22,337 @@ const ROOM_TYPES = {
   meeting_room: { icon: Users, label: 'Meeting Room', color: 'bg-green-100 border-green-300 text-green-800' },
   pantry: { icon: Utensils, label: 'Pantry', color: 'bg-orange-100 border-orange-300 text-orange-800' },
   server_room: { icon: Building, label: 'Server Room', color: 'bg-red-100 border-red-300 text-red-800' }
+};
+
+const PREDEFINED_TEMPLATES = {
+  'Standard 2BHK': {
+    type: '2BHK',
+    carpetArea: 1100,
+    builtUpArea: 1350,
+    balconies: 2,
+    balconyArea: 120,
+    attachedWashrooms: 2,
+    commonWashrooms: 1,
+    roomLayout: {
+      id: 'root',
+      name: 'Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'living_1',
+          name: 'Living Room',
+          type: 'living_room',
+          area: 200,
+          children: []
+        },
+        {
+          id: 'bedroom_1',
+          name: 'Master Bedroom',
+          type: 'bedroom',
+          area: 150,
+          children: [
+            {
+              id: 'washroom_1',
+              name: 'Attached Washroom',
+              type: 'washroom',
+              area: 40,
+              children: []
+            }
+          ]
+        },
+        {
+          id: 'bedroom_2',
+          name: 'Bedroom 2',
+          type: 'bedroom',
+          area: 120,
+          children: []
+        },
+        {
+          id: 'kitchen_1',
+          name: 'Kitchen',
+          type: 'kitchen',
+          area: 80,
+          children: []
+        },
+        {
+          id: 'washroom_2',
+          name: 'Common Washroom',
+          type: 'washroom',
+          area: 35,
+          children: []
+        },
+        {
+          id: 'balcony_1',
+          name: 'Main Balcony',
+          type: 'balcony',
+          area: 60,
+          children: []
+        },
+        {
+          id: 'balcony_2',
+          name: 'Kitchen Balcony',
+          type: 'balcony',
+          area: 30,
+          children: []
+        }
+      ]
+    }
+  },
+  'Luxury 3BHK': {
+    type: '3BHK',
+    carpetArea: 1500,
+    builtUpArea: 1800,
+    balconies: 3,
+    balconyArea: 180,
+    attachedWashrooms: 3,
+    commonWashrooms: 1,
+    roomLayout: {
+      id: 'root',
+      name: 'Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'entrance_1',
+          name: 'Entrance',
+          type: 'entrance',
+          area: 50,
+          children: []
+        },
+        {
+          id: 'living_1',
+          name: 'Living Room',
+          type: 'living_room',
+          area: 250,
+          children: []
+        },
+        {
+          id: 'dining_1',
+          name: 'Dining Room',
+          type: 'dining',
+          area: 120,
+          children: []
+        },
+        {
+          id: 'bedroom_1',
+          name: 'Master Bedroom',
+          type: 'bedroom',
+          area: 200,
+          children: [
+            {
+              id: 'washroom_1',
+              name: 'Master Washroom',
+              type: 'washroom',
+              area: 50,
+              children: []
+            },
+            {
+              id: 'balcony_1',
+              name: 'Master Balcony',
+              type: 'balcony',
+              area: 40,
+              children: []
+            }
+          ]
+        },
+        {
+          id: 'bedroom_2',
+          name: 'Bedroom 2',
+          type: 'bedroom',
+          area: 150,
+          children: [
+            {
+              id: 'washroom_2',
+              name: 'Attached Washroom 2',
+              type: 'washroom',
+              area: 40,
+              children: []
+            }
+          ]
+        },
+        {
+          id: 'bedroom_3',
+          name: 'Bedroom 3',
+          type: 'bedroom',
+          area: 130,
+          children: [
+            {
+              id: 'washroom_3',
+              name: 'Attached Washroom 3',
+              type: 'washroom',
+              area: 35,
+              children: []
+            }
+          ]
+        },
+        {
+          id: 'kitchen_1',
+          name: 'Kitchen',
+          type: 'kitchen',
+          area: 100,
+          children: [
+            {
+              id: 'balcony_2',
+              name: 'Kitchen Balcony',
+              type: 'balcony',
+              area: 25,
+              children: []
+            }
+          ]
+        },
+        {
+          id: 'study_1',
+          name: 'Study Room',
+          type: 'study',
+          area: 80,
+          children: []
+        },
+        {
+          id: 'washroom_4',
+          name: 'Common Washroom',
+          type: 'washroom',
+          area: 35,
+          children: []
+        },
+        {
+          id: 'balcony_3',
+          name: 'Living Room Balcony',
+          type: 'balcony',
+          area: 80,
+          children: []
+        },
+        {
+          id: 'storage_1',
+          name: 'Storage',
+          type: 'storage',
+          area: 30,
+          children: []
+        }
+      ]
+    }
+  },
+  'Compact Studio': {
+    type: 'Studio',
+    carpetArea: 450,
+    builtUpArea: 550,
+    balconies: 1,
+    balconyArea: 40,
+    attachedWashrooms: 1,
+    commonWashrooms: 0,
+    roomLayout: {
+      id: 'root',
+      name: 'Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'living_1',
+          name: 'Living/Bedroom Area',
+          type: 'living_room',
+          area: 250,
+          children: []
+        },
+        {
+          id: 'kitchen_1',
+          name: 'Kitchenette',
+          type: 'kitchen',
+          area: 60,
+          children: []
+        },
+        {
+          id: 'washroom_1',
+          name: 'Washroom',
+          type: 'washroom',
+          area: 40,
+          children: []
+        },
+        {
+          id: 'balcony_1',
+          name: 'Balcony',
+          type: 'balcony',
+          area: 40,
+          children: []
+        }
+      ]
+    }
+  },
+  'Office Space': {
+    type: 'Office',
+    carpetArea: 800,
+    builtUpArea: 950,
+    balconies: 0,
+    balconyArea: 0,
+    attachedWashrooms: 0,
+    commonWashrooms: 2,
+    roomLayout: {
+      id: 'root',
+      name: 'Office Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'reception_1',
+          name: 'Reception',
+          type: 'reception',
+          area: 80,
+          children: []
+        },
+        {
+          id: 'workspace_1',
+          name: 'Open Workspace',
+          type: 'workspace',
+          area: 300,
+          children: []
+        },
+        {
+          id: 'cabin_1',
+          name: 'Manager Cabin',
+          type: 'cabin',
+          area: 100,
+          children: []
+        },
+        {
+          id: 'cabin_2',
+          name: 'Director Cabin',
+          type: 'cabin',
+          area: 120,
+          children: []
+        },
+        {
+          id: 'meeting_1',
+          name: 'Meeting Room',
+          type: 'meeting_room',
+          area: 80,
+          children: []
+        },
+        {
+          id: 'pantry_1',
+          name: 'Pantry',
+          type: 'pantry',
+          area: 40,
+          children: []
+        },
+        {
+          id: 'washroom_1',
+          name: 'Washroom 1',
+          type: 'washroom',
+          area: 25,
+          children: []
+        },
+        {
+          id: 'washroom_2',
+          name: 'Washroom 2',
+          type: 'washroom',
+          area: 25,
+          children: []
+        },
+        {
+          id: 'storage_1',
+          name: 'Storage',
+          type: 'storage',
+          area: 30,
+          children: []
+        }
+      ]
+    }
+  }
 };
 
 const TemplateBuilder = ({ 

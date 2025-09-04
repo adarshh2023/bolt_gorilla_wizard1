@@ -317,6 +317,10 @@ const Step4UnitConfiguration = ({
     onNext();
   };
 
+  const handlePrevious = () => {
+    onPrevious();
+  };
+
   const handleSave = () => {
     onUpdate({ units, customTemplates });
     onSave?.({ units, customTemplates });
@@ -333,7 +337,7 @@ const Step4UnitConfiguration = ({
         <h3 className="text-lg font-medium text-gray-900 mb-2">No towers configured</h3>
         <p className="text-gray-600">Please go back and configure towers and wings first.</p>
         <Button variant="primary" onClick={onPrevious}>
-          Go Back
+          Go Back to Towers
         </Button>
       </div>
     );
@@ -880,12 +884,12 @@ const Step4UnitConfiguration = ({
         </Card.Content>
 
         <StepNavigation
-          onPrevious={handlePrevious}
+          onPrevious={onPrevious}
           onNext={handleNext}
           onSave={handleSave}
           isValid={validationResult.isValid}
-          nextLabel={isLastWing() ? "Next: Amenities" : "Next Wing"}
-          previousLabel={currentTowerIndex === 0 && currentWingIndex === 0 ? "Back: Floor Configuration" : "Previous Wing"}
+          nextLabel="Next: Amenities"
+          previousLabel="Back: Floor Configuration"
         />
       </Card>
 
