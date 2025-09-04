@@ -1,14 +1,19 @@
+// Step4UnitConfiguration.jsx - Updated with chip display, selection-based apply, and drag-drop template builder
 import React, { useState, useEffect } from 'react';
-import { Home,Plus, Grid as Grid3X3, CheckSquare, Square, Copy, Settings, Users, MapPin, Zap, Filter } from 'lucide-react';
+import { Home, Plus, Grid as Grid3X3, CheckSquare, Square, Copy, Settings, Users, MapPin, Zap, Filter, Save, Trash2 } from 'lucide-react';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import StepNavigation from '../wizard/StepNavigation';
 import ValidationSummary from '../wizard/ValidationSummary';
+import TemplateBuilder from '../ui/TemplateBuilder';
 
-const UNIT_TEMPLATES = {
+const UNIT_TYPES = ['1BHK', '2BHK', '3BHK', '4BHK', 'Duplex', 'Penthouse', 'Studio', 'Office', 'Retail', 'Restaurant', 'Showroom'];
+
+const PREDEFINED_TEMPLATES = {
   'Standard 1BHK': {
+    name: 'Standard 1BHK',
     type: '1BHK',
     carpetArea: 650,
     builtUpArea: 850,
@@ -16,10 +21,36 @@ const UNIT_TEMPLATES = {
     balconyArea: 80,
     attachedWashrooms: 1,
     commonWashrooms: 0,
-    facing: 'East',
-    status: 'Available'
+    roomLayout: {
+      id: 'root',
+      name: 'Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'living',
+          name: 'Living Room',
+          type: 'living_room',
+          area: 200,
+          children: [
+            { id: 'balcony1', name: 'Balcony', type: 'balcony', area: 80, children: [] }
+          ]
+        },
+        {
+          id: 'bedroom1',
+          name: 'Master Bedroom',
+          type: 'bedroom',
+          area: 150,
+          children: [
+            { id: 'washroom1', name: 'Attached Washroom', type: 'washroom', area: 40, children: [] }
+          ]
+        },
+        { id: 'kitchen', name: 'Kitchen', type: 'kitchen', area: 80, children: [] },
+        { id: 'entrance', name: 'Entrance', type: 'entrance', area: 30, children: [] }
+      ]
+    }
   },
   'Standard 2BHK': {
+    name: 'Standard 2BHK',
     type: '2BHK',
     carpetArea: 1100,
     builtUpArea: 1350,
@@ -27,43 +58,45 @@ const UNIT_TEMPLATES = {
     balconyArea: 120,
     attachedWashrooms: 2,
     commonWashrooms: 1,
-    facing: 'North',
-    status: 'Available'
-  },
-  'Corner 2BHK': {
-    type: '2BHK',
-    carpetArea: 1250,
-    builtUpArea: 1500,
-    balconies: 2,
-    balconyArea: 150,
-    attachedWashrooms: 2,
-    commonWashrooms: 1,
-    facing: 'North-East',
-    status: 'Available'
-  },
-  'Standard 3BHK': {
-    type: '3BHK',
-    carpetArea: 1450,
-    builtUpArea: 1750,
-    balconies: 3,
-    balconyArea: 180,
-    attachedWashrooms: 3,
-    commonWashrooms: 1,
-    facing: 'South',
-    status: 'Available'
-  },
-  'Penthouse 4BHK': {
-    type: '4BHK',
-    carpetArea: 2200,
-    builtUpArea: 2800,
-    balconies: 4,
-    balconyArea: 300,
-    attachedWashrooms: 4,
-    commonWashrooms: 1,
-    facing: 'North',
-    status: 'Available'
+    roomLayout: {
+      id: 'root',
+      name: 'Unit',
+      type: 'unit',
+      children: [
+        {
+          id: 'living',
+          name: 'Living Room',
+          type: 'living_room',
+          area: 250,
+          children: [
+            { id: 'balcony1', name: 'Living Balcony', type: 'balcony', area: 60, children: [] }
+          ]
+        },
+        {
+          id: 'bedroom1',
+          name: 'Master Bedroom',
+          type: 'bedroom',
+          area: 180,
+          children: [
+            { id: 'washroom1', name: 'Attached Washroom', type: 'washroom', area: 45, children: [] },
+            { id: 'balcony2', name: 'Bedroom Balcony', type: 'balcony', area: 60, children: [] }
+          ]
+        },
+        {
+          id: 'bedroom2',
+          name: 'Bedroom 2',
+          type: 'bedroom',
+          area: 120,
+          children: []
+        },
+        { id: 'kitchen', name: 'Kitchen', type: 'kitchen', area: 100, children: [] },
+        { id: 'washroom2', name: 'Common Washroom', type: 'washroom', area: 35, children: [] },
+        { id: 'entrance', name: 'Entrance', type: 'entrance', area: 40, children: [] }
+      ]
+    }
   },
   'Standard Office': {
+    name: 'Standard Office',
     type: 'Office',
     carpetArea: 800,
     builtUpArea: 1000,
@@ -71,31 +104,24 @@ const UNIT_TEMPLATES = {
     balconyArea: 0,
     attachedWashrooms: 1,
     commonWashrooms: 0,
-    facing: 'North',
-    status: 'Available',
     frontage: 20,
     monthlyRent: 45000,
-    parkingSpaces: 2
-  },
-  'Retail Shop': {
-    type: 'Retail',
-    carpetArea: 600,
-    builtUpArea: 750,
-    balconies: 0,
-    balconyArea: 0,
-    attachedWashrooms: 1,
-    commonWashrooms: 0,
-    facing: 'Street',
-    status: 'Available',
-    frontage: 15,
-    monthlyRent: 35000,
-    parkingSpaces: 1
+    parkingSpaces: 2,
+    roomLayout: {
+      id: 'root',
+      name: 'Office Unit',
+      type: 'unit',
+      children: [
+        { id: 'reception', name: 'Reception Area', type: 'reception', area: 100, children: [] },
+        { id: 'workspace', name: 'Open Workspace', type: 'workspace', area: 400, children: [] },
+        { id: 'cabin1', name: 'Manager Cabin', type: 'cabin', area: 120, children: [] },
+        { id: 'cabin2', name: 'Meeting Room', type: 'meeting_room', area: 100, children: [] },
+        { id: 'washroom1', name: 'Washroom', type: 'washroom', area: 40, children: [] },
+        { id: 'pantry', name: 'Pantry', type: 'pantry', area: 40, children: [] }
+      ]
+    }
   }
 };
-
-const UNIT_TYPES = ['1BHK', '2BHK', '3BHK', '4BHK', 'Duplex', 'Penthouse', 'Studio', 'Office', 'Retail', 'Restaurant', 'Showroom'];
-const FACING_OPTIONS = ['North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West', 'Street'];
-const UNIT_STATUS = ['Available', 'Sold', 'Reserved', 'Blocked'];
 
 const Step4UnitConfiguration = ({ 
   data, 
@@ -109,206 +135,64 @@ const Step4UnitConfiguration = ({
   const [currentNavigation, setCurrentNavigation] = useState({
     towerIndex: 0,
     wingIndex: 0,
-    floorType: 'Floors',
-    floorNumber: 1
+    floorId: null
   });
   const [bulkConfig, setBulkConfig] = useState({});
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-  const [filterType, setFilterType] = useState('all');
+  const [customTemplates, setCustomTemplates] = useState(data.customTemplates || {});
+  const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
   const [validationResult, setValidationResult] = useState({ isValid: true, errors: {}, warnings: [] });
 
   const towers = data.towers || [];
   const currentTower = towers[currentNavigation.towerIndex];
   const currentWing = currentTower?.wings[currentNavigation.wingIndex];
 
-  // Generate floor navigation options
-  const getFloorNavigationOptions = () => {
+  // Get all individual floors for current wing
+  const getIndividualFloors = () => {
     if (!currentWing) return [];
     
-    const options = [];
+    const floors = [];
     Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
       if (config.enabled && config.count > 0) {
         for (let i = 1; i <= config.count; i++) {
-          options.push({
-            floorType,
-            floorNumber: i,
-            label: `${floorType} ${i}`,
-            key: `${floorType}-${i}`
+          const floorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
+          const floorConfig = data.floorConfigurations?.[floorId] || {};
+          floors.push({
+            id: floorId,
+            type: floorType,
+            number: i,
+            displayName: `${floorType} ${i}`,
+            unitsCount: floorConfig.unitsCount || 0,
+            usages: floorConfig.usages || []
           });
         }
       }
     });
-    return options;
+    return floors;
   };
 
-  const getCurrentFloorKey = () => {
-    return `${currentTower?.id}-${currentWing?.id}-${currentNavigation.floorType}-${currentNavigation.floorNumber}`;
-  };
+  const individualFloors = getIndividualFloors();
+  const currentFloor = individualFloors.find(f => f.id === currentNavigation.floorId) || individualFloors[0];
 
-  const getCurrentFloorUnits = () => {
-    const key = getCurrentFloorKey();
-    return units[key] || [];
-  };
-
-  const generateUnitId = (unitIndex) => {
+  const generateUnitId = (floorId, unitIndex) => {
     const wingLetter = currentWing?.name.charAt(currentWing.name.length - 1) || 'A';
-    const floorNumber = currentNavigation.floorNumber.toString().padStart(2, '0');
+    const floorNumber = currentFloor?.number?.toString().padStart(2, '0') || '01';
     const unitNumber = (unitIndex + 1).toString().padStart(2, '0');
     return `${wingLetter}-${floorNumber}${unitNumber}`;
   };
 
+  const getCurrentFloorUnits = () => {
+    if (!currentFloor) return [];
+    return units[currentFloor.id] || [];
+  };
+
   const initializeFloorUnits = () => {
-    const key = getCurrentFloorKey();
-    if (!units[key]) {
-      // Get units per floor from floor configuration
-      const floorConfig = data.floorConfigurations?.[`${currentTower.id}-${currentWing.id}-${currentNavigation.floorType}`];
-      const unitsPerFloor = floorConfig?.configs?.Apartments?.units || 4;
-      
-      const newUnits = [];
-      for (let i = 0; i < unitsPerFloor; i++) {
-        newUnits.push({
-          id: generateUnitId(i),
-          type: currentWing.type === 'Commercial' ? 'Office' : '2BHK',
-          carpetArea: currentWing.type === 'Commercial' ? 800 : 1100,
-          builtUpArea: currentWing.type === 'Commercial' ? 1000 : 1350,
-          balconies: currentWing.type === 'Commercial' ? 0 : 2,
-          balconyArea: currentWing.type === 'Commercial' ? 0 : 120,
-          attachedWashrooms: currentWing.type === 'Commercial' ? 1 : 2,
-          commonWashrooms: currentWing.type === 'Commercial' ? 0 : 1,
-          facing: 'North',
-          status: 'Available',
-          ...(currentWing.type === 'Commercial' && {
-            frontage: 20,
-            monthlyRent: 45000,
-            parkingSpaces: 2
-          })
-        });
-      }
-      
-      setUnits(prev => ({
-        ...prev,
-        [key]: newUnits
-      }));
-    }
-  };
-
-  useEffect(() => {
-    initializeFloorUnits();
-  }, [currentNavigation, currentTower, currentWing]);
-
-  const updateUnit = (unitIndex, updates) => {
-    const key = getCurrentFloorKey();
-    setUnits(prev => ({
-      ...prev,
-      [key]: prev[key].map((unit, index) => 
-        index === unitIndex ? { ...unit, ...updates } : unit
-      )
-    }));
-  };
-
-  const toggleUnitSelection = (unitIndex) => {
-    const key = getCurrentFloorKey();
-    setSelectedUnits(prev => ({
-      ...prev,
-      [key]: prev[key]?.includes(unitIndex)
-        ? prev[key].filter(index => index !== unitIndex)
-        : [...(prev[key] || []), unitIndex]
-    }));
-  };
-
-  const selectAllUnits = () => {
-    const key = getCurrentFloorKey();
-    const currentUnits = getCurrentFloorUnits();
-    setSelectedUnits(prev => ({
-      ...prev,
-      [key]: currentUnits.map((_, index) => index)
-    }));
-  };
-
-  const selectByPattern = (pattern) => {
-    const key = getCurrentFloorKey();
-    const currentUnits = getCurrentFloorUnits();
-    let selectedIndexes = [];
-
-    switch (pattern) {
-      case 'corner':
-        selectedIndexes = [0, currentUnits.length - 1].filter(i => i < currentUnits.length);
-        break;
-      case 'even':
-        selectedIndexes = currentUnits.map((_, index) => index).filter(i => i % 2 === 1);
-        break;
-      case 'odd':
-        selectedIndexes = currentUnits.map((_, index) => index).filter(i => i % 2 === 0);
-        break;
-      case 'first-half':
-        selectedIndexes = currentUnits.slice(0, Math.ceil(currentUnits.length / 2)).map((_, index) => index);
-        break;
-      case 'second-half':
-        selectedIndexes = currentUnits.slice(Math.ceil(currentUnits.length / 2)).map((_, index) => index + Math.ceil(currentUnits.length / 2));
-        break;
-      default:
-        selectedIndexes = [];
-    }
-
-    setSelectedUnits(prev => ({
-      ...prev,
-      [key]: selectedIndexes
-    }));
-  };
-
-  const clearSelection = () => {
-    const key = getCurrentFloorKey();
-    setSelectedUnits(prev => ({
-      ...prev,
-      [key]: []
-    }));
-  };
-
-  const applyBulkConfiguration = () => {
-    const key = getCurrentFloorKey();
-    const selectedIndexes = selectedUnits[key] || [];
+    if (!currentFloor || units[currentFloor.id]) return;
     
-    if (selectedIndexes.length === 0 || Object.keys(bulkConfig).length === 0) return;
-
-    setUnits(prev => ({
-      ...prev,
-      [key]: prev[key].map((unit, index) => 
-        selectedIndexes.includes(index) ? { ...unit, ...bulkConfig } : unit
-      )
-    }));
-
-    // Clear selection after applying
-    clearSelection();
-    setBulkConfig({});
-  };
-
-  const applyTemplate = (templateName) => {
-    const key = getCurrentFloorKey();
-    const selectedIndexes = selectedUnits[key] || [];
-    const template = UNIT_TEMPLATES[templateName];
-    
-    if (selectedIndexes.length === 0 || !template) return;
-
-    setUnits(prev => ({
-      ...prev,
-      [key]: prev[key].map((unit, index) => 
-        selectedIndexes.includes(index) ? { ...unit, ...template } : unit
-      )
-    }));
-
-    clearSelection();
-    setSelectedTemplate('');
-  };
-
-  const addUnitsToFloor = (count) => {
-    const key = getCurrentFloorKey();
-    const currentUnits = getCurrentFloorUnits();
     const newUnits = [];
-    
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < currentFloor.unitsCount; i++) {
       newUnits.push({
-        id: generateUnitId(currentUnits.length + i),
+        id: generateUnitId(currentFloor.id, i),
         type: currentWing.type === 'Commercial' ? 'Office' : '2BHK',
         carpetArea: currentWing.type === 'Commercial' ? 800 : 1100,
         builtUpArea: currentWing.type === 'Commercial' ? 1000 : 1350,
@@ -316,8 +200,7 @@ const Step4UnitConfiguration = ({
         balconyArea: currentWing.type === 'Commercial' ? 0 : 120,
         attachedWashrooms: currentWing.type === 'Commercial' ? 1 : 2,
         commonWashrooms: currentWing.type === 'Commercial' ? 0 : 1,
-        facing: 'North',
-        status: 'Available',
+        roomLayout: null,
         ...(currentWing.type === 'Commercial' && {
           frontage: 20,
           monthlyRent: 45000,
@@ -325,56 +208,136 @@ const Step4UnitConfiguration = ({
         })
       });
     }
-
+    
     setUnits(prev => ({
       ...prev,
-      [key]: [...currentUnits, ...newUnits]
+      [currentFloor.id]: newUnits
     }));
   };
 
-  const removeSelectedUnits = () => {
-    const key = getCurrentFloorKey();
-    const selectedIndexes = selectedUnits[key] || [];
+  useEffect(() => {
+    if (currentFloor) {
+      initializeFloorUnits();
+    }
+  }, [currentFloor]);
+
+  useEffect(() => {
+    if (individualFloors.length > 0 && !currentNavigation.floorId) {
+      setCurrentNavigation(prev => ({
+        ...prev,
+        floorId: individualFloors[0].id
+      }));
+    }
+  }, [individualFloors]);
+
+  const updateUnit = (unitIndex, updates) => {
+    if (!currentFloor) return;
     
     setUnits(prev => ({
       ...prev,
-      [key]: prev[key].filter((_, index) => !selectedIndexes.includes(index))
+      [currentFloor.id]: prev[currentFloor.id].map((unit, index) => 
+        index === unitIndex ? { ...unit, ...updates } : unit
+      )
     }));
+  };
+
+  const toggleUnitSelection = (unitIndex) => {
+    if (!currentFloor) return;
     
+    setSelectedUnits(prev => ({
+      ...prev,
+      [currentFloor.id]: prev[currentFloor.id]?.includes(unitIndex)
+        ? prev[currentFloor.id].filter(index => index !== unitIndex)
+        : [...(prev[currentFloor.id] || []), unitIndex]
+    }));
+  };
+
+  const selectAllUnits = () => {
+    if (!currentFloor) return;
+    
+    const currentUnits = getCurrentFloorUnits();
+    setSelectedUnits(prev => ({
+      ...prev,
+      [currentFloor.id]: currentUnits.map((_, index) => index)
+    }));
+  };
+
+  const clearSelection = () => {
+    if (!currentFloor) return;
+    
+    setSelectedUnits(prev => ({
+      ...prev,
+      [currentFloor.id]: []
+    }));
+  };
+
+  const applyConfigurationToSelected = () => {
+    if (!currentFloor) return;
+    
+    const selectedIndexes = selectedUnits[currentFloor.id] || [];
+    if (selectedIndexes.length === 0 || Object.keys(bulkConfig).length === 0) return;
+
+    setUnits(prev => ({
+      ...prev,
+      [currentFloor.id]: prev[currentFloor.id].map((unit, index) => 
+        selectedIndexes.includes(index) ? { ...unit, ...bulkConfig } : unit
+      )
+    }));
+
+    clearSelection();
+    setBulkConfig({});
+  };
+
+  const applyTemplateToSelected = (templateData) => {
+    if (!currentFloor) return;
+    
+    const selectedIndexes = selectedUnits[currentFloor.id] || [];
+    if (selectedIndexes.length === 0) return;
+
+    setUnits(prev => ({
+      ...prev,
+      [currentFloor.id]: prev[currentFloor.id].map((unit, index) => 
+        selectedIndexes.includes(index) ? { ...unit, ...templateData } : unit
+      )
+    }));
+
     clearSelection();
   };
 
+  const saveCustomTemplate = (templateData) => {
+    const templateName = templateData.name || `Custom Template ${Object.keys(customTemplates).length + 1}`;
+    setCustomTemplates(prev => ({
+      ...prev,
+      [templateName]: templateData
+    }));
+  };
+
   const handleNext = () => {
-    onUpdate({ units });
+    onUpdate({ units, customTemplates });
     onNext();
   };
 
   const handleSave = () => {
-    onUpdate({ units });
-    onSave?.({ units });
+    onUpdate({ units, customTemplates });
+    onSave?.({ units, customTemplates });
   };
 
   const currentUnits = getCurrentFloorUnits();
-  const key = getCurrentFloorKey();
-  const selectedIndexes = selectedUnits[key] || [];
-  const floorOptions = getFloorNavigationOptions();
+  const selectedIndexes = selectedUnits[currentFloor?.id] || [];
+  const allTemplates = { ...PREDEFINED_TEMPLATES, ...customTemplates };
 
-  const getUnitStatusColor = (status) => {
-    switch (status) {
-      case 'Available': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Sold': return 'bg-red-100 text-red-800 border-red-200';
-      case 'Reserved': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Blocked': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const filteredUnits = currentUnits.filter(unit => {
-    if (filterType === 'all') return true;
-    if (filterType === 'residential') return ['1BHK', '2BHK', '3BHK', '4BHK', 'Duplex', 'Penthouse', 'Studio'].includes(unit.type);
-    if (filterType === 'commercial') return ['Office', 'Retail', 'Restaurant', 'Showroom'].includes(unit.type);
-    return unit.status === filterType;
-  });
+  if (!currentTower || !currentWing) {
+    return (
+      <div className="text-center py-12">
+        <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No towers configured</h3>
+        <p className="text-gray-600">Please go back and configure towers and wings first.</p>
+        <Button variant="primary" onClick={onPrevious}>
+          Go Back
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-slide-up">
@@ -385,18 +348,26 @@ const Step4UnitConfiguration = ({
             <div className="flex items-center space-x-4 text-sm text-gray-600">
               <span>{currentUnits.length} Units</span>
               <span>{selectedIndexes.length} Selected</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplateBuilder(true)}
+                icon={Plus}
+              >
+                Create Template
+              </Button>
             </div>
           </div>
           <Card.Subtitle>
-            Configure individual units using bulk operations and templates. Select multiple units to apply the same configuration efficiently.
+            Configure individual units for each floor. Select multiple units to apply configurations efficiently using templates or custom settings.
           </Card.Subtitle>
         </Card.Header>
 
         <Card.Content>
           {/* Navigation Controls */}
           <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-            <h4 className="font-bold text-blue-800 mb-4">📍 Current Location</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <h4 className="font-bold text-blue-800 mb-4">📍 Navigation</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Select
                 label="Tower"
                 options={towers.map((tower, index) => ({
@@ -408,7 +379,7 @@ const Step4UnitConfiguration = ({
                   ...prev,
                   towerIndex: parseInt(e.target.value),
                   wingIndex: 0,
-                  floorNumber: 1
+                  floorId: null
                 }))}
               />
 
@@ -422,329 +393,324 @@ const Step4UnitConfiguration = ({
                 onChange={(e) => setCurrentNavigation(prev => ({
                   ...prev,
                   wingIndex: parseInt(e.target.value),
-                  floorNumber: 1
+                  floorId: null
                 }))}
               />
 
               <Select
-                label="Floor Type"
-                options={Object.entries(currentWing?.floorTypes || {})
-                  .filter(([_, config]) => config.enabled && config.count > 0)
-                  .map(([floorType]) => ({ value: floorType, label: floorType }))}
-                value={currentNavigation.floorType}
+                label="Floor"
+                options={individualFloors.map(floor => ({
+                  value: floor.id,
+                  label: floor.displayName
+                }))}
+                value={currentNavigation.floorId || ''}
                 onChange={(e) => setCurrentNavigation(prev => ({
                   ...prev,
-                  floorType: e.target.value,
-                  floorNumber: 1
-                }))}
-              />
-
-              <Select
-                label="Floor Number"
-                options={Array.from({ length: currentWing?.floorTypes[currentNavigation.floorType]?.count || 1 }, (_, i) => ({
-                  value: i + 1,
-                  label: `Floor ${i + 1}`
-                }))}
-                value={currentNavigation.floorNumber}
-                onChange={(e) => setCurrentNavigation(prev => ({
-                  ...prev,
-                  floorNumber: parseInt(e.target.value)
+                  floorId: e.target.value
                 }))}
               />
             </div>
 
-            <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h5 className="font-semibold text-gray-800">
-                    {currentTower?.name || currentTower?.customName} → {currentWing?.name} → {currentNavigation.floorType} {currentNavigation.floorNumber}
-                  </h5>
-                  <p className="text-sm text-gray-600">{currentWing?.type} Wing • {currentUnits.length} Units</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addUnitsToFloor(1)}
-                    icon={Plus}
-                  >
-                    Add Unit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addUnitsToFloor(4)}
-                  >
-                    Add 4 Units
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bulk Operations Panel */}
-          <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-            <h4 className="font-bold text-purple-800 mb-4">🔧 Bulk Operations</h4>
-            
-            {/* Selection Controls */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h5 className="font-semibold text-gray-800">Unit Selection</h5>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                    icon={viewMode === 'grid' ? Grid3X3 : Users}
-                  >
-                    {viewMode === 'grid' ? 'List View' : 'Grid View'}
-                  </Button>
-                  <Select
-                    options={[
-                      { value: 'all', label: 'All Units' },
-                      { value: 'residential', label: 'Residential Only' },
-                      { value: 'commercial', label: 'Commercial Only' },
-                      { value: 'Available', label: 'Available Only' },
-                      { value: 'Sold', label: 'Sold Only' }
-                    ]}
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 mb-4">
-                <Button variant="outline" size="sm" onClick={selectAllUnits}>
-                  Select All
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => selectByPattern('corner')}>
-                  Corner Units
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => selectByPattern('even')}>
-                  Even Numbers
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => selectByPattern('odd')}>
-                  Odd Numbers
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => selectByPattern('first-half')}>
-                  First Half
-                </Button>
-                <Button variant="outline" size="sm" onClick={clearSelection}>
-                  Clear Selection
-                </Button>
-              </div>
-
-              {selectedIndexes.length > 0 && (
-                <div className="p-4 bg-white rounded-lg border border-purple-200">
-                  <p className="text-sm text-purple-800 font-medium mb-3">
-                    {selectedIndexes.length} unit{selectedIndexes.length > 1 ? 's' : ''} selected: {' '}
-                    {selectedIndexes.map(index => currentUnits[index]?.id).join(', ')}
-                  </p>
-                  
-                  {/* Template Application */}
-                  <div className="flex items-center space-x-4 mb-4">
-                    <Select
-                      placeholder="Apply Template"
-                      options={Object.keys(UNIT_TEMPLATES).map(name => ({ value: name, label: name }))}
-                      value={selectedTemplate}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                      className="flex-1"
-                    />
+            {currentFloor && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h5 className="font-semibold text-gray-800">
+                      {currentTower.name || currentTower.customName} → {currentWing.name} → {currentFloor.displayName}
+                    </h5>
+                    <p className="text-sm text-gray-600">
+                      {currentWing.type} Wing • {currentFloor.usages.join(', ') || 'No usage defined'} • {currentUnits.length} Units
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <Button
-                      variant="success"
+                      variant="outline"
                       size="sm"
-                      onClick={() => applyTemplate(selectedTemplate)}
-                      disabled={!selectedTemplate}
+                      onClick={() => {
+                        const newUnits = [];
+                        for (let i = 0; i < 4; i++) {
+                          newUnits.push({
+                            id: generateUnitId(currentFloor.id, currentUnits.length + i),
+                            type: currentWing.type === 'Commercial' ? 'Office' : '2BHK',
+                            carpetArea: currentWing.type === 'Commercial' ? 800 : 1100,
+                            builtUpArea: currentWing.type === 'Commercial' ? 1000 : 1350,
+                            balconies: currentWing.type === 'Commercial' ? 0 : 2,
+                            balconyArea: currentWing.type === 'Commercial' ? 0 : 120,
+                            attachedWashrooms: currentWing.type === 'Commercial' ? 1 : 2,
+                            commonWashrooms: currentWing.type === 'Commercial' ? 0 : 1,
+                            roomLayout: null,
+                            ...(currentWing.type === 'Commercial' && {
+                              frontage: 20,
+                              monthlyRent: 45000,
+                              parkingSpaces: 2
+                            })
+                          });
+                        }
+                        setUnits(prev => ({
+                          ...prev,
+                          [currentFloor.id]: [...currentUnits, ...newUnits]
+                        }));
+                      }}
+                      icon={Plus}
                     >
-                      Apply Template
+                      Add 4 Units
                     </Button>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-                  {/* Custom Bulk Configuration */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <Select
-                      placeholder="Unit Type"
-                      options={UNIT_TYPES}
-                      value={bulkConfig.type || ''}
-                      onChange={(e) => setBulkConfig(prev => ({ ...prev, type: e.target.value }))}
-                    />
-                    <Input
-                      placeholder="Carpet Area"
-                      type="number"
-                      value={bulkConfig.carpetArea || ''}
-                      onChange={(e) => setBulkConfig(prev => ({ ...prev, carpetArea: parseInt(e.target.value) || 0 }))}
-                    />
-                    <Select
-                      placeholder="Facing"
-                      options={FACING_OPTIONS}
-                      value={bulkConfig.facing || ''}
-                      onChange={(e) => setBulkConfig(prev => ({ ...prev, facing: e.target.value }))}
-                    />
-                    <Select
-                      placeholder="Status"
-                      options={UNIT_STATUS}
-                      value={bulkConfig.status || ''}
-                      onChange={(e) => setBulkConfig(prev => ({ ...prev, status: e.target.value }))}
-                    />
+          {/* Selection and Bulk Operations */}
+          {currentUnits.length > 0 && (
+            <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+              <h4 className="font-bold text-purple-800 mb-4">🔧 Unit Selection & Configuration</h4>
+              
+              {/* Selection Controls */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="font-semibold text-gray-800">Select Units</h5>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={selectAllUnits}>
+                      Select All
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={clearSelection}>
+                      Clear Selection
+                    </Button>
                   </div>
+                </div>
 
-                  <div className="flex items-center space-x-4">
+                {selectedIndexes.length > 0 && (
+                  <div className="p-4 bg-white rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-800 font-medium mb-4">
+                      {selectedIndexes.length} unit{selectedIndexes.length > 1 ? 's' : ''} selected: {' '}
+                      {selectedIndexes.map(index => currentUnits[index]?.id).join(', ')}
+                    </p>
+                    
+                    {/* Template Application */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="form-label">Apply Template</label>
+                        <div className="flex space-x-2">
+                          <Select
+                            placeholder="Choose template"
+                            options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => {
+                              if (selectedTemplate && allTemplates[selectedTemplate]) {
+                                applyTemplateToSelected(allTemplates[selectedTemplate]);
+                                setSelectedTemplate('');
+                              }
+                            }}
+                            disabled={!selectedTemplate}
+                          >
+                            Apply
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="form-label">Quick Actions</label>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const firstSelectedUnit = currentUnits[selectedIndexes[0]];
+                              if (firstSelectedUnit) {
+                                applyTemplateToSelected(firstSelectedUnit);
+                              }
+                            }}
+                            disabled={selectedIndexes.length === 0}
+                          >
+                            Copy First Selected
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => {
+                              setUnits(prev => ({
+                                ...prev,
+                                [currentFloor.id]: prev[currentFloor.id].filter((_, index) => !selectedIndexes.includes(index))
+                              }));
+                              clearSelection();
+                            }}
+                            disabled={selectedIndexes.length === 0}
+                          >
+                            Remove Selected
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Custom Bulk Configuration */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <Select
+                        placeholder="Unit Type"
+                        options={UNIT_TYPES}
+                        value={bulkConfig.type || ''}
+                        onChange={(e) => setBulkConfig(prev => ({ ...prev, type: e.target.value }))}
+                      />
+                      <Input
+                        placeholder="Carpet Area"
+                        type="number"
+                        value={bulkConfig.carpetArea || ''}
+                        onChange={(e) => setBulkConfig(prev => ({ ...prev, carpetArea: parseInt(e.target.value) || 0 }))}
+                      />
+                      <Input
+                        placeholder="Built-up Area"
+                        type="number"
+                        value={bulkConfig.builtUpArea || ''}
+                        onChange={(e) => setBulkConfig(prev => ({ ...prev, builtUpArea: parseInt(e.target.value) || 0 }))}
+                      />
+                      <Input
+                        placeholder="Balconies"
+                        type="number"
+                        value={bulkConfig.balconies || ''}
+                        onChange={(e) => setBulkConfig(prev => ({ ...prev, balconies: parseInt(e.target.value) || 0 }))}
+                      />
+                    </div>
+
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={applyBulkConfiguration}
+                      onClick={applyConfigurationToSelected}
                       disabled={Object.keys(bulkConfig).length === 0}
                     >
-                      Apply to Selected Units
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={removeSelectedUnits}
-                    >
-                      Remove Selected Units
+                      Apply Configuration to Selected Units
                     </Button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Units Display */}
+          {/* Units Display as Chips */}
           <div className="space-y-6">
-            {viewMode === 'grid' ? (
+            {currentUnits.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Units on This Floor</h4>
+                <p className="text-gray-600 mb-6">
+                  {currentFloor ? `${currentFloor.displayName} has ${currentFloor.unitsCount} units configured in Step 3` : 'Select a floor to configure units'}
+                </p>
+                {currentFloor && currentFloor.unitsCount > 0 && (
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      const newUnits = [];
+                      for (let i = 0; i < currentFloor.unitsCount; i++) {
+                        newUnits.push({
+                          id: generateUnitId(currentFloor.id, i),
+                          type: currentWing.type === 'Commercial' ? 'Office' : '2BHK',
+                          carpetArea: currentWing.type === 'Commercial' ? 800 : 1100,
+                          builtUpArea: currentWing.type === 'Commercial' ? 1000 : 1350,
+                          balconies: currentWing.type === 'Commercial' ? 0 : 2,
+                          balconyArea: currentWing.type === 'Commercial' ? 0 : 120,
+                          attachedWashrooms: currentWing.type === 'Commercial' ? 1 : 2,
+                          commonWashrooms: currentWing.type === 'Commercial' ? 0 : 1,
+                          roomLayout: null,
+                          ...(currentWing.type === 'Commercial' && {
+                            frontage: 20,
+                            monthlyRent: 45000,
+                            parkingSpaces: 2
+                          })
+                        });
+                      }
+                      setUnits(prev => ({
+                        ...prev,
+                        [currentFloor.id]: newUnits
+                      }));
+                    }}
+                    icon={Plus}
+                  >
+                    Initialize {currentFloor.unitsCount} Units
+                  </Button>
+                )}
+              </div>
+            ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                {filteredUnits.map((unit, index) => {
-                  const actualIndex = currentUnits.findIndex(u => u.id === unit.id);
-                  const isSelected = selectedIndexes.includes(actualIndex);
+                {currentUnits.map((unit, index) => {
+                  const isSelected = selectedIndexes.includes(index);
                   
                   return (
                     <div
                       key={unit.id}
                       className={`
-                        relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                        relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group
                         ${isSelected 
                           ? 'border-purple-400 bg-purple-50 shadow-lg transform scale-105' 
-                          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                          : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:scale-102'
                         }
                       `}
-                      onClick={() => toggleUnitSelection(actualIndex)}
+                      onClick={() => toggleUnitSelection(index)}
                     >
-                      {/* Selection Checkbox */}
+                      {/* Selection Indicator */}
                       <div className="absolute top-2 right-2">
                         {isSelected ? (
                           <CheckSquare className="w-5 h-5 text-purple-600" />
                         ) : (
-                          <Square className="w-5 h-5 text-gray-400" />
+                          <Square className="w-5 h-5 text-gray-400 group-hover:text-blue-400" />
                         )}
                       </div>
 
-                      {/* Unit Info */}
+                      {/* Unit Info Chip */}
                       <div className="text-center">
-                        <div className="font-bold text-lg text-gray-800 mb-1">{unit.id}</div>
+                        <div className="font-bold text-lg text-gray-800 mb-2">{unit.id}</div>
+                        
                         <div className={`
-                          inline-block px-2 py-1 rounded-full text-xs font-medium border
-                          ${getUnitStatusColor(unit.status)}
+                          inline-block px-3 py-1 rounded-full text-xs font-medium border mb-3
+                          ${unit.type === 'Office' || unit.type === 'Retail' 
+                            ? 'bg-orange-100 text-orange-800 border-orange-200'
+                            : 'bg-blue-100 text-blue-800 border-blue-200'
+                          }
                         `}>
-                          {unit.status}
+                          {unit.type}
                         </div>
-                        <div className="mt-2 text-sm text-gray-600">
-                          <div>{unit.type}</div>
-                          <div>{unit.carpetArea} sq ft</div>
-                          <div className="flex items-center justify-center mt-1">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {unit.facing}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredUnits.map((unit, index) => {
-                  const actualIndex = currentUnits.findIndex(u => u.id === unit.id);
-                  const isSelected = selectedIndexes.includes(actualIndex);
-                  
-                  return (
-                    <div
-                      key={unit.id}
-                      className={`
-                        flex items-center p-4 rounded-lg border cursor-pointer transition-all duration-200
-                        ${isSelected 
-                          ? 'border-purple-400 bg-purple-50 shadow-md' 
-                          : 'border-gray-200 bg-white hover:border-blue-300'
-                        }
-                      `}
-                      onClick={() => toggleUnitSelection(actualIndex)}
-                    >
-                      <div className="mr-4">
-                        {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-purple-600" />
-                        ) : (
-                          <Square className="w-5 h-5 text-gray-400" />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 grid grid-cols-2 md:grid-cols-6 gap-4 items-center">
-                        <div>
-                          <div className="font-bold text-gray-800">{unit.id}</div>
-                          <div className="text-sm text-gray-600">{unit.type}</div>
-                        </div>
-                        <div className="text-sm">
-                          <div className="text-gray-800">{unit.carpetArea} sq ft</div>
-                          <div className="text-gray-600">Carpet Area</div>
-                        </div>
-                        <div className="text-sm">
-                          <div className="text-gray-800">{unit.balconies} balconies</div>
-                          <div className="text-gray-600">{unit.balconyArea} sq ft</div>
-                        </div>
-                        <div className="text-sm">
-                          <div className="text-gray-800">{unit.attachedWashrooms + unit.commonWashrooms} washrooms</div>
-                          <div className="text-gray-600">{unit.attachedWashrooms}A + {unit.commonWashrooms}C</div>
-                        </div>
-                        <div className="text-sm">
-                          <div className="text-gray-800">{unit.facing}</div>
-                          <div className="text-gray-600">Facing</div>
-                        </div>
-                        <div>
-                          <div className={`
-                            inline-block px-3 py-1 rounded-full text-xs font-medium border
-                            ${getUnitStatusColor(unit.status)}
-                          `}>
-                            {unit.status}
-                          </div>
+                        
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <div className="font-medium">{unit.carpetArea} sq ft</div>
+                          <div>{unit.balconies} balconies</div>
+                          <div>{unit.attachedWashrooms + unit.commonWashrooms} washrooms</div>
+                          {unit.roomLayout && (
+                            <div className="text-green-600 font-medium">✓ Layout Designed</div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
 
-            {currentUnits.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">No Units Configured</h4>
-                <p className="text-gray-600 mb-6">Add units to this floor to get started</p>
-                <Button
-                  variant="primary"
-                  onClick={() => addUnitsToFloor(4)}
-                  icon={Plus}
-                >
-                  Add 4 Standard Units
-                </Button>
+                      {/* Hover Actions */}
+                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl flex items-center justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Open individual unit editor
+                          }}
+                          className="bg-white/90 hover:bg-white"
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Individual Unit Configuration (for selected unit) */}
+          {/* Individual Unit Configuration (for single selection) */}
           {selectedIndexes.length === 1 && (
             <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
               <h4 className="font-bold text-green-800 mb-4">✏️ Edit Unit: {currentUnits[selectedIndexes[0]]?.id}</h4>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <Select
                   label="Unit Type"
                   options={UNIT_TYPES}
@@ -784,13 +750,6 @@ const Step4UnitConfiguration = ({
                   max={500}
                 />
                 
-                <Select
-                  label="Facing Direction"
-                  options={FACING_OPTIONS}
-                  value={currentUnits[selectedIndexes[0]]?.facing || ''}
-                  onChange={(e) => updateUnit(selectedIndexes[0], { facing: e.target.value })}
-                />
-                
                 <Input.Number
                   label="Attached Washrooms"
                   value={currentUnits[selectedIndexes[0]]?.attachedWashrooms || 0}
@@ -805,13 +764,6 @@ const Step4UnitConfiguration = ({
                   onChange={(e) => updateUnit(selectedIndexes[0], { commonWashrooms: parseInt(e.target.value) || 0 })}
                   min={0}
                   max={3}
-                />
-                
-                <Select
-                  label="Unit Status"
-                  options={UNIT_STATUS}
-                  value={currentUnits[selectedIndexes[0]]?.status || ''}
-                  onChange={(e) => updateUnit(selectedIndexes[0], { status: e.target.value })}
                 />
 
                 {/* Commercial specific fields */}
@@ -842,69 +794,114 @@ const Step4UnitConfiguration = ({
                   </>
                 )}
               </div>
+
+              {/* Room Layout Designer */}
+              <div className="mt-6 pt-6 border-t border-green-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="font-semibold text-green-800">🏠 Room Layout Design</h5>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTemplateBuilder(true)}
+                    icon={Settings}
+                  >
+                    Design Layout
+                  </Button>
+                </div>
+                
+                {currentUnits[selectedIndexes[0]]?.roomLayout ? (
+                  <div className="p-4 bg-white rounded-lg border border-green-200">
+                    <p className="text-sm text-green-700 font-medium">✓ Custom layout designed</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {currentUnits[selectedIndexes[0]].roomLayout.children?.length || 0} rooms configured
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-600">No custom layout designed</p>
+                    <p className="text-xs text-gray-500 mt-1">Using default layout based on unit type</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Floor Summary */}
-          <div className="mt-8 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
-            <h4 className="text-xl font-bold mb-4">📊 Floor Summary</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-300">{currentUnits.length}</div>
-                <div className="text-sm text-gray-300">Total Units</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-300">
-                  {currentUnits.reduce((sum, unit) => sum + (unit.carpetArea || 0), 0).toLocaleString()}
+          {currentFloor && (
+            <div className="mt-8 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
+              <h4 className="text-xl font-bold mb-4">📊 {currentFloor.displayName} Summary</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-300">{currentUnits.length}</div>
+                  <div className="text-sm text-gray-300">Total Units</div>
                 </div>
-                <div className="text-sm text-gray-300">Total Carpet Area (sq ft)</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-300">
-                  {currentUnits.filter(unit => unit.status === 'Available').length}
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-300">
+                    {currentUnits.reduce((sum, unit) => sum + (unit.carpetArea || 0), 0).toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-300">Total Carpet Area (sq ft)</div>
                 </div>
-                <div className="text-sm text-gray-300">Available Units</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-pink-300">
-                  {currentUnits.filter(unit => unit.status === 'Sold').length}
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-300">
+                    {currentUnits.filter(unit => unit.roomLayout).length}
+                  </div>
+                  <div className="text-sm text-gray-300">Custom Layouts</div>
                 </div>
-                <div className="text-sm text-gray-300">Sold Units</div>
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-pink-300">
+                    {currentUnits.reduce((sum, unit) => sum + (unit.attachedWashrooms || 0) + (unit.commonWashrooms || 0), 0)}
+                  </div>
+                  <div className="text-sm text-gray-300">Total Washrooms</div>
+                </div>
               </div>
-            </div>
 
-            {/* Unit Type Breakdown */}
-            <div className="mt-6 pt-6 border-t border-gray-700">
-              <h5 className="font-bold mb-4">Unit Type Distribution</h5>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {UNIT_TYPES.map(type => {
-                  const count = currentUnits.filter(unit => unit.type === type).length;
-                  if (count === 0) return null;
-                  
-                  return (
-                    <div key={type} className="bg-white/10 p-3 rounded-lg">
-                      <p className="font-semibold text-yellow-300">{type}</p>
-                      <p className="text-2xl font-bold">{count}</p>
-                    </div>
-                  );
-                })}
+              {/* Unit Type Breakdown */}
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <h5 className="font-bold mb-4">Unit Type Distribution</h5>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  {UNIT_TYPES.map(type => {
+                    const count = currentUnits.filter(unit => unit.type === type).length;
+                    if (count === 0) return null;
+                    
+                    return (
+                      <div key={type} className="bg-white/10 p-3 rounded-lg">
+                        <p className="font-semibold text-yellow-300">{type}</p>
+                        <p className="text-2xl font-bold">{count}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </Card.Content>
 
         <StepNavigation
-          onPrevious={onPrevious}
+          onPrevious={handlePrevious}
           onNext={handleNext}
           onSave={handleSave}
           isValid={validationResult.isValid}
-          nextLabel="Next: Amenities"
-          previousLabel="Back: Floor Configuration"
+          nextLabel={isLastWing() ? "Next: Amenities" : "Next Wing"}
+          previousLabel={currentTowerIndex === 0 && currentWingIndex === 0 ? "Back: Floor Configuration" : "Previous Wing"}
         />
       </Card>
+
+      {/* Template Builder Modal */}
+      {showTemplateBuilder && (
+        <TemplateBuilder
+          onClose={() => setShowTemplateBuilder(false)}
+          onSave={saveCustomTemplate}
+          existingTemplates={customTemplates}
+          selectedUnit={selectedIndexes.length === 1 ? currentUnits[selectedIndexes[0]] : null}
+          onApplyToSelected={(templateData) => {
+            applyTemplateToSelected(templateData);
+            setShowTemplateBuilder(false);
+          }}
+        />
+      )}
     </div>
   );
 };

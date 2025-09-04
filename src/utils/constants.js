@@ -27,7 +27,7 @@ export const TOWER_PRESET_OPTIONS = [
 export const WING_TYPES = ["Commercial", "Residential", "Mixed"];
 
 export const FLOOR_TYPES_ORDER = [
-  "B1",
+  "Basement",
   "Podium",
   "Ground",
   "Floors",
@@ -197,7 +197,7 @@ export const WING_TEMPLATE = {
   name: "",
   type: "Residential", // Commercial/Residential/Mixed
   floorTypes: {
-    B1: { enabled: false, count: 0 },
+    Basement: { enabled: false, count: 0 },
     Podium: { enabled: false, count: 0 },
     Ground: { enabled: true, count: 1 },
     Floors: { enabled: true, count: 10 },

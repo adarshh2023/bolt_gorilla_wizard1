@@ -1,0 +1,643 @@
+// TemplateBuilder.jsx - Drag and drop template builder for room layouts
+import React, { useState, useCallback } from 'react';
+import { X, Save, Plus, Trash2, Move, Home, Bed, Bath, Car, Utensils, Sofa, TreePine, Building, Users, Briefcase } from 'lucide-react';
+import Button from './Button';
+import Input from './Input';
+
+const ROOM_TYPES = {
+  living_room: { icon: Sofa, label: 'Living Room', color: 'bg-blue-100 border-blue-300 text-blue-800' },
+  bedroom: { icon: Bed, label: 'Bedroom', color: 'bg-green-100 border-green-300 text-green-800' },
+  washroom: { icon: Bath, label: 'Washroom', color: 'bg-purple-100 border-purple-300 text-purple-800' },
+  kitchen: { icon: Utensils, label: 'Kitchen', color: 'bg-orange-100 border-orange-300 text-orange-800' },
+  balcony: { icon: TreePine, label: 'Balcony', color: 'bg-emerald-100 border-emerald-300 text-emerald-800' },
+  entrance: { icon: Home, label: 'Entrance', color: 'bg-gray-100 border-gray-300 text-gray-800' },
+  dining: { icon: Users, label: 'Dining Room', color: 'bg-pink-100 border-pink-300 text-pink-800' },
+  study: { icon: Briefcase, label: 'Study Room', color: 'bg-indigo-100 border-indigo-300 text-indigo-800' },
+  storage: { icon: Building, label: 'Storage', color: 'bg-yellow-100 border-yellow-300 text-yellow-800' },
+  // Commercial rooms
+  reception: { icon: Users, label: 'Reception', color: 'bg-cyan-100 border-cyan-300 text-cyan-800' },
+  workspace: { icon: Briefcase, label: 'Workspace', color: 'bg-blue-100 border-blue-300 text-blue-800' },
+  cabin: { icon: Building, label: 'Cabin', color: 'bg-purple-100 border-purple-300 text-purple-800' },
+  meeting_room: { icon: Users, label: 'Meeting Room', color: 'bg-green-100 border-green-300 text-green-800' },
+  pantry: { icon: Utensils, label: 'Pantry', color: 'bg-orange-100 border-orange-300 text-orange-800' },
+  server_room: { icon: Building, label: 'Server Room', color: 'bg-red-100 border-red-300 text-red-800' }
+};
+
+const TemplateBuilder = ({ 
+  onClose, 
+  onSave, 
+  existingTemplates = {}, 
+  selectedUnit = null,
+  onApplyToSelected 
+}) => {
+  const [templateName, setTemplateName] = useState('');
+  const [templateType, setTemplateType] = useState('2BHK');
+  const [roomLayout, setRoomLayout] = useState({
+    id: 'root',
+    name: 'Unit',
+    type: 'unit',
+    children: []
+  });
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [expandedNodes, setExpandedNodes] = useState(new Set(['root']));
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [unitConfig, setUnitConfig] = useState({
+    carpetArea: 1100,
+    builtUpArea: 1350,
+    balconies: 2,
+    balconyArea: 120,
+    attachedWashrooms: 2,
+    commonWashrooms: 1
+  });
+
+  // Initialize with selected unit data if available
+  useEffect(() => {
+    if (selectedUnit) {
+      setTemplateType(selectedUnit.type);
+      setUnitConfig({
+        carpetArea: selectedUnit.carpetArea || 1100,
+        builtUpArea: selectedUnit.builtUpArea || 1350,
+        balconies: selectedUnit.balconies || 2,
+        balconyArea: selectedUnit.balconyArea || 120,
+        attachedWashrooms: selectedUnit.attachedWashrooms || 2,
+        commonWashrooms: selectedUnit.commonWashrooms || 1
+      });
+      if (selectedUnit.roomLayout) {
+        setRoomLayout(selectedUnit.roomLayout);
+      }
+    }
+  }, [selectedUnit]);
+
+  const generateId = () => `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const addRoomToParent = (parentId, roomType) => {
+    const newRoom = {
+      id: generateId(),
+      name: ROOM_TYPES[roomType].label,
+      type: roomType,
+      area: 100,
+      children: []
+    };
+
+    const addToNode = (node) => {
+      if (node.id === parentId) {
+        return { ...node, children: [...node.children, newRoom] };
+      }
+      return { ...node, children: node.children.map(addToNode) };
+    };
+
+    setRoomLayout(addToNode);
+    setExpandedNodes(prev => new Set([...prev, parentId]));
+  };
+
+  const removeRoom = (roomId) => {
+    const removeFromNode = (node) => {
+      return {
+        ...node,
+        children: node.children
+          .filter(child => child.id !== roomId)
+          .map(removeFromNode)
+      };
+    };
+
+    setRoomLayout(removeFromNode);
+    setSelectedNode(null);
+  };
+
+  const updateRoom = (roomId, updates) => {
+    const updateNode = (node) => {
+      if (node.id === roomId) {
+        return { ...node, ...updates };
+      }
+      return { ...node, children: node.children.map(updateNode) };
+    };
+
+    setRoomLayout(updateNode);
+  };
+
+  const moveRoom = (sourceId, targetId) => {
+    let roomToMove = null;
+
+    // Find and remove the room
+    const removeFromNode = (node) => {
+      const filteredChildren = node.children.filter(child => {
+        if (child.id === sourceId) {
+          roomToMove = child;
+          return false;
+        }
+        return true;
+      });
+
+      return {
+        ...node,
+        children: filteredChildren.map(removeFromNode)
+      };
+    };
+
+    // Add room to new parent
+    const addToNode = (node) => {
+      if (node.id === targetId && roomToMove) {
+        return { ...node, children: [...node.children, roomToMove] };
+      }
+      return { ...node, children: node.children.map(addToNode) };
+    };
+
+    const layoutWithoutRoom = removeFromNode(roomLayout);
+    if (roomToMove) {
+      setRoomLayout(addToNode(layoutWithoutRoom));
+      setExpandedNodes(prev => new Set([...prev, targetId]));
+    }
+  };
+
+  const toggleNodeExpansion = (nodeId) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDragStart = (e, roomType) => {
+    setDraggedItem(roomType);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (draggedItem) {
+      addRoomToParent(targetId, draggedItem);
+      setDraggedItem(null);
+    }
+  };
+
+  const handleRoomMove = (e, sourceId) => {
+    e.dataTransfer.setData('sourceId', sourceId);
+  };
+
+  const handleRoomDrop = (e, targetId) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('sourceId');
+    if (sourceId && sourceId !== targetId) {
+      moveRoom(sourceId, targetId);
+    }
+  };
+
+  const saveTemplate = () => {
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+
+    const template = {
+      name: templateName,
+      type: templateType,
+      ...unitConfig,
+      roomLayout,
+      createdAt: new Date().toISOString()
+    };
+
+    onSave(template);
+    onClose();
+  };
+
+  const applyToSelected = () => {
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+
+    const template = {
+      name: templateName,
+      type: templateType,
+      ...unitConfig,
+      roomLayout
+    };
+
+    onApplyToSelected(template);
+  };
+
+  const RoomNode = ({ node, level = 0, parentId = null }) => {
+    const roomType = ROOM_TYPES[node.type] || ROOM_TYPES.living_room;
+    const Icon = roomType.icon;
+    const isExpanded = expandedNodes.has(node.id);
+    const isSelected = selectedNode === node.id;
+    const hasChildren = node.children && node.children.length > 0;
+
+    return (
+      <div className={`ml-${level * 4}`}>
+        <div
+          className={`
+            flex items-center p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer group
+            ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}
+            ${roomType.color}
+          `}
+          onClick={() => setSelectedNode(node.id)}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, node.id)}
+          draggable={node.id !== 'root'}
+          onDragStart={(e) => handleRoomMove(e, node.id)}
+        >
+          <div className="flex items-center space-x-3 flex-1">
+            {hasChildren && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleNodeExpansion(node.id);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                {isExpanded ? '▼' : '▶'}
+              </button>
+            )}
+            
+            <Icon className="w-5 h-5" />
+            
+            <div className="flex-1">
+              <div className="font-medium">{node.name}</div>
+              {node.area && (
+                <div className="text-xs text-gray-600">{node.area} sq ft</div>
+              )}
+            </div>
+          </div>
+
+          {node.id !== 'root' && (
+            <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedNode(node.id);
+                }}
+                className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeRoom(node.id);
+                }}
+                className="p-1 text-red-600 hover:bg-red-100 rounded"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isExpanded && hasChildren && (
+          <div className="mt-2 space-y-2">
+            {node.children.map(child => (
+              <RoomNode key={child.id} node={child} level={level + 1} parentId={node.id} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">🏗️ Room Layout Template Builder</h3>
+            <p className="text-gray-600 mt-1">Design custom room layouts using drag and drop</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} icon={X}>
+            Close
+          </Button>
+        </div>
+
+        <div className="flex h-[calc(90vh-120px)]">
+          {/* Left Panel - Room Components */}
+          <div className="w-80 border-r border-gray-200 p-6 overflow-y-auto bg-gray-50">
+            <h4 className="font-bold text-gray-800 mb-4">🧩 Room Components</h4>
+            <p className="text-sm text-gray-600 mb-6">Drag rooms into the layout area or into other rooms to create nested structures</p>
+            
+            <div className="space-y-3">
+              {Object.entries(ROOM_TYPES).map(([type, config]) => {
+                const Icon = config.icon;
+                return (
+                  <div
+                    key={type}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, type)}
+                    className={`
+                      flex items-center p-3 rounded-lg border-2 cursor-move transition-all duration-200
+                      hover:shadow-md hover:scale-105 ${config.color}
+                    `}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    <span className="font-medium">{config.label}</span>
+                    <Move className="w-4 h-4 ml-auto text-gray-500" />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Template Configuration */}
+            <div className="mt-8 pt-6 border-t border-gray-300">
+              <h5 className="font-bold text-gray-800 mb-4">⚙️ Template Settings</h5>
+              <div className="space-y-4">
+                <Input
+                  label="Template Name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g., Luxury 3BHK"
+                  required
+                />
+                
+                <Select
+                  label="Unit Type"
+                  options={['1BHK', '2BHK', '3BHK', '4BHK', 'Duplex', 'Penthouse', 'Studio', 'Office', 'Retail']}
+                  value={templateType}
+                  onChange={(e) => setTemplateType(e.target.value)}
+                />
+                
+                <Input.Number
+                  label="Carpet Area (sq ft)"
+                  value={unitConfig.carpetArea}
+                  onChange={(e) => setUnitConfig(prev => ({ ...prev, carpetArea: parseInt(e.target.value) || 0 }))}
+                  min={200}
+                  max={5000}
+                />
+                
+                <Input.Number
+                  label="Built-up Area (sq ft)"
+                  value={unitConfig.builtUpArea}
+                  onChange={(e) => setUnitConfig(prev => ({ ...prev, builtUpArea: parseInt(e.target.value) || 0 }))}
+                  min={300}
+                  max={6000}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Center Panel - Layout Builder */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="font-bold text-gray-800">🏠 Room Layout Design</h4>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRoomLayout({
+                    id: 'root',
+                    name: 'Unit',
+                    type: 'unit',
+                    children: []
+                  })}
+                  icon={Trash2}
+                >
+                  Clear All
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    // Load a predefined template
+                    const template = Object.values(PREDEFINED_TEMPLATES)[0];
+                    if (template.roomLayout) {
+                      setRoomLayout(template.roomLayout);
+                      setUnitConfig({
+                        carpetArea: template.carpetArea,
+                        builtUpArea: template.builtUpArea,
+                        balconies: template.balconies,
+                        balconyArea: template.balconyArea,
+                        attachedWashrooms: template.attachedWashrooms,
+                        commonWashrooms: template.commonWashrooms
+                      });
+                    }
+                  }}
+                >
+                  Load Sample
+                </Button>
+              </div>
+            </div>
+
+            {/* Drop Zone */}
+            <div
+              className="min-h-96 border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-purple-50"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'root')}
+            >
+              {roomLayout.children.length === 0 ? (
+                <div className="text-center py-12">
+                  <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-600 mb-2">Start Building Your Layout</h4>
+                  <p className="text-gray-500">Drag room components from the left panel to create your unit layout</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <RoomNode node={roomLayout} />
+                </div>
+              )}
+            </div>
+
+            {/* Layout Statistics */}
+            {roomLayout.children.length > 0 && (
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg border border-blue-200">
+                <h5 className="font-semibold text-blue-800 mb-3">📊 Layout Statistics</h5>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-blue-700">Total Rooms:</span>
+                    <span className="ml-2 font-bold">{roomLayout.children.length}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">Bedrooms:</span>
+                    <span className="ml-2 font-bold">
+                      {roomLayout.children.filter(room => room.type === 'bedroom').length}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-purple-700">Washrooms:</span>
+                    <span className="ml-2 font-bold">
+                      {roomLayout.children.filter(room => room.type === 'washroom').length + 
+                       roomLayout.children.reduce((sum, room) => 
+                         sum + (room.children?.filter(child => child.type === 'washroom').length || 0), 0)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-orange-700">Balconies:</span>
+                    <span className="ml-2 font-bold">
+                      {roomLayout.children.filter(room => room.type === 'balcony').length + 
+                       roomLayout.children.reduce((sum, room) => 
+                         sum + (room.children?.filter(child => child.type === 'balcony').length || 0), 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel - Room Properties */}
+          <div className="w-80 border-l border-gray-200 p-6 overflow-y-auto bg-gray-50">
+            <h4 className="font-bold text-gray-800 mb-4">🔧 Room Properties</h4>
+            
+            {selectedNode ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <h5 className="font-semibold text-gray-800 mb-3">Edit Room</h5>
+                  
+                  {/* Find the selected room */}
+                  {(() => {
+                    let selectedRoom = null;
+                    const findRoom = (node) => {
+                      if (node.id === selectedNode) {
+                        selectedRoom = node;
+                        return;
+                      }
+                      node.children?.forEach(findRoom);
+                    };
+                    findRoom(roomLayout);
+
+                    if (!selectedRoom) return <p className="text-gray-500">Room not found</p>;
+
+                    return (
+                      <div className="space-y-3">
+                        <Input
+                          label="Room Name"
+                          value={selectedRoom.name}
+                          onChange={(e) => updateRoom(selectedNode, { name: e.target.value })}
+                        />
+                        
+                        <Input.Number
+                          label="Area (sq ft)"
+                          value={selectedRoom.area || 0}
+                          onChange={(e) => updateRoom(selectedNode, { area: parseInt(e.target.value) || 0 })}
+                          min={10}
+                          max={1000}
+                        />
+
+                        <Select
+                          label="Room Type"
+                          options={Object.entries(ROOM_TYPES).map(([key, config]) => ({
+                            value: key,
+                            label: config.label
+                          }))}
+                          value={selectedRoom.type}
+                          onChange={(e) => updateRoom(selectedNode, { type: e.target.value })}
+                        />
+
+                        <div className="pt-3 border-t border-gray-200">
+                          <h6 className="font-medium text-gray-700 mb-2">Add Sub-rooms</h6>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['washroom', 'balcony', 'storage'].map(roomType => {
+                              const config = ROOM_TYPES[roomType];
+                              const Icon = config.icon;
+                              return (
+                                <button
+                                  key={roomType}
+                                  onClick={() => addRoomToParent(selectedNode, roomType)}
+                                  className="flex items-center p-2 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                                >
+                                  <Icon className="w-3 h-3 mr-1" />
+                                  {config.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {selectedRoom.id !== 'root' && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => removeRoom(selectedNode)}
+                            icon={Trash2}
+                            className="w-full"
+                          >
+                            Remove Room
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Select a room to edit its properties</p>
+              </div>
+            )}
+
+            {/* Quick Templates */}
+            <div className="mt-8 pt-6 border-t border-gray-300">
+              <h5 className="font-bold text-gray-800 mb-4">⚡ Quick Templates</h5>
+              <div className="space-y-2">
+                {Object.entries(PREDEFINED_TEMPLATES).map(([name, template]) => (
+                  <button
+                    key={name}
+                    onClick={() => {
+                      setRoomLayout(template.roomLayout);
+                      setTemplateType(template.type);
+                      setUnitConfig({
+                        carpetArea: template.carpetArea,
+                        builtUpArea: template.builtUpArea,
+                        balconies: template.balconies,
+                        balconyArea: template.balconyArea,
+                        attachedWashrooms: template.attachedWashrooms,
+                        commonWashrooms: template.commonWashrooms
+                      });
+                      setExpandedNodes(new Set(['root']));
+                    }}
+                    className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="font-medium text-gray-800">{name}</div>
+                    <div className="text-xs text-gray-600">{template.carpetArea} sq ft • {template.type}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          <div className="text-sm text-gray-600">
+            {roomLayout.children.length} rooms configured
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            
+            {onApplyToSelected && selectedUnit && (
+              <Button
+                variant="success"
+                onClick={applyToSelected}
+                disabled={!templateName.trim()}
+                icon={CheckSquare}
+              >
+                Apply to Selected Units
+              </Button>
+            )}
+            
+            <Button
+              variant="primary"
+              onClick={saveTemplate}
+              disabled={!templateName.trim()}
+              icon={Save}
+            >
+              Save Template
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TemplateBuilder;

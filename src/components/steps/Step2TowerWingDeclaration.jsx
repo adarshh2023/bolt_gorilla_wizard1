@@ -1,7 +1,20 @@
-// Step2TowerWingDeclaration.jsx - Complete tower and wing declaration step
+// Step2TowerWingDeclaration.jsx - Updated with Ground/Floors always enabled and Basement naming
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Trash2, Copy, Settings } from 'lucide-react';
-import { TOWER_PRESET_OPTIONS, WING_TYPES, FLOOR_TYPES_ORDER, WING_TEMPLATE } from '../../utils/constants';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import Button from '../ui/Button';
+import StepNavigation from '../wizard/StepNavigation';
+import { TOWER_PRESET_OPTIONS, WING_TYPES, WING_TEMPLATE } from '../../utils/constants';
+
+const FLOOR_TYPES_CONFIG = [
+  { key: 'Basement', label: 'Basement', hasCheckbox: true },
+  { key: 'Podium', label: 'Podium', hasCheckbox: true },
+  { key: 'Ground', label: 'Ground', hasCheckbox: false }, // Always enabled
+  { key: 'Floors', label: 'Floors', hasCheckbox: false }, // Always enabled
+  { key: 'Terrace', label: 'Terrace', hasCheckbox: true },
+];
 
 const Step2TowerWingDeclaration = ({ 
   data, 
@@ -31,7 +44,9 @@ const Step2TowerWingDeclaration = ({
   };
 
   const removeTower = (towerId) => {
-    setTowers(towers.filter(tower => tower.id !== towerId));
+    if (towers.length > 1) {
+      setTowers(towers.filter(tower => tower.id !== towerId));
+    }
   };
 
   const updateTower = (towerId, updates) => {
@@ -48,6 +63,13 @@ const Step2TowerWingDeclaration = ({
       ...WING_TEMPLATE,
       id: `${towerId}-wing-${Date.now()}`,
       name: `Wing ${wingLetter}`,
+      floorTypes: {
+        Basement: { enabled: false, count: 0 },
+        Podium: { enabled: false, count: 0 },
+        Ground: { enabled: true, count: 1 }, // Always enabled
+        Floors: { enabled: true, count: 10 }, // Always enabled
+        Terrace: { enabled: false, count: 0 },
+      }
     };
 
     updateTower(towerId, {
@@ -57,9 +79,11 @@ const Step2TowerWingDeclaration = ({
 
   const removeWingFromTower = (towerId, wingId) => {
     const tower = towers.find(t => t.id === towerId);
-    updateTower(towerId, {
-      wings: tower.wings.filter(wing => wing.id !== wingId)
-    });
+    if (tower.wings.length > 1) {
+      updateTower(towerId, {
+        wings: tower.wings.filter(wing => wing.id !== wingId)
+      });
+    }
   };
 
   const updateWing = (towerId, wingId, updates) => {
@@ -121,6 +145,11 @@ const Step2TowerWingDeclaration = ({
     }
   };
 
+  const handleSave = () => {
+    onUpdate({ towers });
+    onSave?.({ towers });
+  };
+
   const getTotalWings = () => {
     return towers.reduce((total, tower) => total + tower.wings.length, 0);
   };
@@ -140,260 +169,300 @@ const Step2TowerWingDeclaration = ({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Step Header */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Tower & Wing Declaration</h3>
-        <p className="text-gray-600">
-          Define your project's tower structure and wing configuration. Each tower can have multiple wings with different floor types.
-        </p>
-        
-        {/* Summary Stats */}
-        <div className="mt-4 flex space-x-6 text-sm">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <span><strong>{towers.length}</strong> Towers</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span><strong>{getTotalWings()}</strong> Wings</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-            <span><strong>{getTotalFloors()}</strong> Total Floors</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Towers */}
-      <div className="space-y-6">
-        {towers.map((tower, towerIndex) => (
-          <div key={tower.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            {/* Tower Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <Building2 className="w-6 h-6 text-blue-600" />
-                <h4 className="text-lg font-semibold text-gray-900">
-                  Tower {towerIndex + 1}
-                </h4>
-              </div>
-              <div className="flex items-center space-x-2">
-                {towers.length > 1 && (
-                  <button
-                    onClick={() => removeTower(tower.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                    title="Remove Tower"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+    <div className="space-y-8 animate-slide-up">
+      <Card className="overflow-hidden">
+        <Card.Header>
+          <div className="flex items-center justify-between">
+            <Card.Title icon={Building2} gradient>Tower & Wing Declaration</Card.Title>
+            <div className="flex items-center space-x-6 text-sm text-gray-600">
+              <span><strong>{towers.length}</strong> Towers</span>
+              <span><strong>{getTotalWings()}</strong> Wings</span>
+              <span><strong>{getTotalFloors()}</strong> Total Floors</span>
             </div>
+          </div>
+          <Card.Subtitle>
+            Define your project's tower structure and wing configuration. Each tower can have multiple wings with different floor types.
+          </Card.Subtitle>
+        </Card.Header>
 
-            {/* Tower Name Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tower Name
-                </label>
-                <select
-                  value={tower.name}
-                  onChange={(e) => updateTower(tower.id, { name: e.target.value, customName: '' })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select tower name...</option>
-                  {TOWER_PRESET_OPTIONS.filter(option => option !== 'Custom').map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                  <option value="Custom">Custom</option>
-                </select>
-                {errors[`tower-${tower.id}-name`] && (
-                  <p className="mt-1 text-sm text-red-600">{errors[`tower-${tower.id}-name`]}</p>
-                )}
-              </div>
+        <Card.Content>
+          {/* Global Validation Errors */}
+          {errors.towers && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-600">{errors.towers}</p>
+            </div>
+          )}
 
-              {tower.name === 'Custom' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Custom Tower Name
-                  </label>
-                  <input
-                    type="text"
-                    value={tower.customName}
-                    onChange={(e) => updateTower(tower.id, { customName: e.target.value })}
-                    placeholder="Enter custom tower name"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          <div className="space-y-8">
+            {towers.map((tower, towerIndex) => (
+              <div key={tower.id} className="step-card">
+                {/* Tower Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl flex items-center justify-center font-bold text-lg">
+                      {towerIndex + 1}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-800">Tower {towerIndex + 1}</h3>
+                      <p className="text-sm text-gray-600">{tower.wings.length} wings configured</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {towers.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTower(tower.id)}
+                        icon={Trash2}
+                        className="hover:bg-red-100 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tower Name Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <Select
+                    label="Tower Name"
+                    placeholder="Select tower name..."
+                    options={[...TOWER_PRESET_OPTIONS.filter(option => option !== 'Custom'), 'Custom']}
+                    value={tower.name}
+                    onChange={(e) => updateTower(tower.id, { name: e.target.value, customName: '' })}
+                    error={errors[`tower-${tower.id}-name`]}
+                    required
                   />
-                </div>
-              )}
-            </div>
 
-            {/* Wings Section */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h5 className="text-md font-medium text-gray-900">Wings</h5>
-                <button
-                  onClick={() => addWingToTower(tower.id)}
-                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Wing</span>
-                </button>
-              </div>
-
-              {tower.wings.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                  <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">No wings added to this tower</p>
-                  <button
-                    onClick={() => addWingToTower(tower.id)}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-                  >
-                    Add First Wing
-                  </button>
+                  {tower.name === 'Custom' && (
+                    <Input
+                      label="Custom Tower Name"
+                      placeholder="Enter custom tower name"
+                      value={tower.customName}
+                      onChange={(e) => updateTower(tower.id, { customName: e.target.value })}
+                      required
+                    />
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {tower.wings.map((wing, wingIndex) => (
-                    <div key={wing.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      {/* Wing Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-sm font-medium">
-                            {String.fromCharCode(65 + wingIndex)}
+
+                {/* Wings Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-lg font-semibold text-gray-800">Wings Configuration</h4>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => addWingToTower(tower.id)}
+                      icon={Plus}
+                    >
+                      Add Wing
+                    </Button>
+                  </div>
+
+                  {tower.wings.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                      <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">No wings added to this tower</h4>
+                      <p className="text-gray-600 mb-6">Add wings to define the structure of this tower</p>
+                      <Button
+                        variant="primary"
+                        onClick={() => addWingToTower(tower.id)}
+                        icon={Plus}
+                      >
+                        Add First Wing
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {tower.wings.map((wing, wingIndex) => (
+                        <div key={wing.id} className="p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
+                          {/* Wing Header */}
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg flex items-center justify-center text-sm font-bold">
+                                {String.fromCharCode(65 + wingIndex)}
+                              </div>
+                              <div className="flex-1">
+                                <Input
+                                  value={wing.name}
+                                  onChange={(e) => updateWing(tower.id, wing.id, { name: e.target.value })}
+                                  placeholder="Wing name"
+                                  className="font-medium text-lg"
+                                  error={errors[`wing-${wing.id}-name`]}
+                                />
+                              </div>
+                              <Select
+                                options={WING_TYPES}
+                                value={wing.type}
+                                onChange={(e) => updateWing(tower.id, wing.id, { type: e.target.value })}
+                                className="w-40"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {tower.wings.length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeWingFromTower(tower.id, wing.id)}
+                                  icon={Trash2}
+                                  className="hover:bg-red-100 hover:text-red-700"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <input
-                              type="text"
-                              value={wing.name}
-                              onChange={(e) => updateWing(tower.id, wing.id, { name: e.target.value })}
-                              className="text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
-                              placeholder="Wing name"
+
+                          {/* Floor Types Configuration */}
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                            {FLOOR_TYPES_CONFIG.map(floorConfig => (
+                              <div key={floorConfig.key} className="space-y-3">
+                                <div className="flex items-center">
+                                  {floorConfig.hasCheckbox ? (
+                                    <input
+                                      type="checkbox"
+                                      id={`${wing.id}-${floorConfig.key}`}
+                                      checked={wing.floorTypes[floorConfig.key]?.enabled || false}
+                                      onChange={(e) => updateWingFloorType(tower.id, wing.id, floorConfig.key, { 
+                                        enabled: e.target.checked,
+                                        count: e.target.checked ? (wing.floorTypes[floorConfig.key]?.count || 1) : 0
+                                      })}
+                                      className="mr-2 w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                                    />
+                                  ) : (
+                                    <div className="mr-2 w-4 h-4 flex items-center justify-center">
+                                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    </div>
+                                  )}
+                                  <label htmlFor={`${wing.id}-${floorConfig.key}`} className="text-sm font-medium text-gray-700">
+                                    {floorConfig.label}
+                                  </label>
+                                </div>
+                                {(wing.floorTypes[floorConfig.key]?.enabled || !floorConfig.hasCheckbox) && (
+                                  <Input.Number
+                                    value={wing.floorTypes[floorConfig.key]?.count || (floorConfig.key === 'Ground' ? 1 : floorConfig.key === 'Floors' ? 10 : 1)}
+                                    onChange={(e) => updateWingFloorType(tower.id, wing.id, floorConfig.key, { 
+                                      enabled: true,
+                                      count: parseInt(e.target.value) || 1 
+                                    })}
+                                    min={floorConfig.key === 'Ground' ? 1 : 0}
+                                    max={floorConfig.key === 'Floors' ? 50 : 10}
+                                    className="text-sm"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Lifts Configuration */}
+                          <div className="flex items-center space-x-6 pt-4 border-t border-gray-200">
+                            <div className="flex items-center space-x-3">
+                              <Settings className="w-4 h-4 text-gray-600" />
+                              <label className="text-sm font-medium text-gray-700">Number of Lifts:</label>
+                            </div>
+                            <Input.Number
+                              value={wing.lifts}
+                              onChange={(e) => updateWing(tower.id, wing.id, { lifts: parseInt(e.target.value) || 0 })}
+                              min={0}
+                              max={10}
+                              className="w-24"
                             />
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={wing.type}
-                            onChange={(e) => updateWing(tower.id, wing.id, { type: e.target.value })}
-                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                          >
-                            {WING_TYPES.map(type => (
-                              <option key={type} value={type}>{type}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => removeWingFromTower(tower.id, wing.id)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                            title="Remove Wing"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
 
-                      {/* Floor Types Configuration */}
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
-                        {FLOOR_TYPES_ORDER.map(floorType => (
-                          <div key={floorType} className="space-y-2">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id={`${wing.id}-${floorType}`}
-                                checked={wing.floorTypes[floorType]?.enabled || false}
-                                onChange={(e) => updateWingFloorType(tower.id, wing.id, floorType, { 
-                                  enabled: e.target.checked,
-                                  count: e.target.checked ? (wing.floorTypes[floorType]?.count || 1) : 0
-                                })}
-                                className="mr-2 rounded text-blue-600 focus:ring-blue-500"
-                              />
-                              <label htmlFor={`${wing.id}-${floorType}`} className="text-sm font-medium text-gray-700">
-                                {floorType}
-                              </label>
+                          {/* Wing Summary */}
+                          <div className="mt-4 p-4 bg-white rounded-lg border border-green-200">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-600">Total Floors:</span>
+                                <span className="ml-2 font-bold text-green-700">
+                                  {Object.values(wing.floorTypes).reduce((sum, ft) => sum + (ft.enabled ? ft.count : 0), 0)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Wing Type:</span>
+                                <span className="ml-2 font-bold text-blue-700">{wing.type}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Lifts:</span>
+                                <span className="ml-2 font-bold text-purple-700">{wing.lifts}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Status:</span>
+                                <span className="ml-2 font-bold text-green-700">✓ Configured</span>
+                              </div>
                             </div>
-                            {wing.floorTypes[floorType]?.enabled && (
-                              <input
-                                type="number"
-                                min="1"
-                                value={wing.floorTypes[floorType]?.count || 1}
-                                onChange={(e) => updateWingFloorType(tower.id, wing.id, floorType, { 
-                                  count: parseInt(e.target.value) || 1 
-                                })}
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                                placeholder="Count"
-                              />
-                            )}
                           </div>
-                        ))}
-                      </div>
 
-                      {/* Lifts Configuration */}
-                      <div className="flex items-center space-x-4 pt-3 border-t border-gray-200">
-                        <label className="text-sm font-medium text-gray-700">Number of Lifts:</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          value={wing.lifts}
-                          onChange={(e) => updateWing(tower.id, wing.id, { lifts: parseInt(e.target.value) || 0 })}
-                          className="w-20 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      {/* Validation Errors */}
-                      {errors[`wing-${wing.id}-name`] && (
-                        <p className="mt-2 text-sm text-red-600">{errors[`wing-${wing.id}-name`]}</p>
-                      )}
-                      {errors[`wing-${wing.id}-floors`] && (
-                        <p className="mt-2 text-sm text-red-600">{errors[`wing-${wing.id}-floors`]}</p>
-                      )}
+                          {/* Validation Errors */}
+                          {errors[`wing-${wing.id}-name`] && (
+                            <p className="mt-2 text-sm text-red-600">{errors[`wing-${wing.id}-name`]}</p>
+                          )}
+                          {errors[`wing-${wing.id}-floors`] && (
+                            <p className="mt-2 text-sm text-red-600">{errors[`wing-${wing.id}-floors`]}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Tower Validation Errors */}
+                  {errors[`tower-${tower.id}-wings`] && (
+                    <p className="mt-4 text-sm text-red-600">{errors[`tower-${tower.id}-wings`]}</p>
+                  )}
                 </div>
-              )}
+              </div>
+            ))}
+
+            {/* Add Tower Button */}
+            <div 
+              onClick={addTower}
+              className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 text-gray-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 cursor-pointer group"
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <Plus className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
+                <span className="text-lg font-medium">Add Another Tower</span>
+              </div>
             </div>
-
-            {/* Tower Validation Errors */}
-            {errors[`tower-${tower.id}-wings`] && (
-              <p className="mt-4 text-sm text-red-600">{errors[`tower-${tower.id}-wings`]}</p>
-            )}
           </div>
-        ))}
 
-        {/* Add Tower Button */}
-        <button
-          onClick={addTower}
-          className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
-        >
-          <div className="flex items-center justify-center space-x-2">
-            <Plus className="w-5 h-5" />
-            <span>Add Another Tower</span>
+          {/* Project Summary */}
+          <div className="mt-10 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
+            <h4 className="text-xl font-bold mb-4">🎯 Project Structure Summary</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-300">{towers.length}</div>
+                <div className="text-sm text-gray-300">Total Towers</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-300">{getTotalWings()}</div>
+                <div className="text-sm text-gray-300">Total Wings</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-300">{getTotalFloors()}</div>
+                <div className="text-sm text-gray-300">Total Floors</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-3xl font-bold text-pink-300">
+                  {towers.reduce((sum, tower) => sum + tower.wings.reduce((wingSum, wing) => wingSum + wing.lifts, 0), 0)}
+                </div>
+                <div className="text-sm text-gray-300">Total Lifts</div>
+              </div>
+            </div>
           </div>
-        </button>
-      </div>
+        </Card.Content>
 
-      {/* Global Validation Errors */}
-      {errors.towers && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-600">{errors.towers}</p>
-        </div>
-      )}
-
-      {/* Navigation */}
-      <div className="flex justify-between pt-6 border-t border-gray-200">
-        <button
-          onClick={onPrevious}
-          className="flex items-center space-x-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-        >
-          <span>← Previous</span>
-        </button>
-        <button
-          onClick={handleNext}
-          className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <span>Next: Floor Configuration →</span>
-        </button>
-      </div>
+        <StepNavigation
+          onPrevious={onPrevious}
+          onNext={handleNext}
+          onSave={handleSave}
+          isValid={Object.keys(errors).length === 0}
+          nextLabel="Next: Floor Configuration"
+          previousLabel="Back: Project Overview"
+        />
+      </Card>
     </div>
   );
 };
