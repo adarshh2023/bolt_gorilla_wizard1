@@ -11,7 +11,7 @@ import { TOWER_PRESET_OPTIONS, WING_TYPES, WING_TEMPLATE } from '../../utils/con
 const FLOOR_TYPES_CONFIG = [
   { key: 'Basement', label: 'Basement', hasCheckbox: true },
   { key: 'Podium', label: 'Podium', hasCheckbox: true },
-  { key: 'Ground', label: 'Ground', hasCheckbox: false }, // Always enabled
+  { key: 'Ground', label: 'Ground', hasCheckbox: true }, // Now editable
   { key: 'Floors', label: 'Floors', hasCheckbox: false }, // Always enabled
   { key: 'Terrace', label: 'Terrace', hasCheckbox: true },
 ];
@@ -66,7 +66,7 @@ const Step2TowerWingDeclaration = ({
       floorTypes: {
         Basement: { enabled: false, count: 0 },
         Podium: { enabled: false, count: 0 },
-        Ground: { enabled: true, count: 1 }, // Always enabled
+        Ground: { enabled: true, count: 1 }, // Default enabled but editable
         Floors: { enabled: true, count: 10 }, // Always enabled
         Terrace: { enabled: false, count: 0 },
       }

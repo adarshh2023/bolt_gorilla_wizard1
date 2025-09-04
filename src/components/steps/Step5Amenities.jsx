@@ -451,13 +451,6 @@ const Step5Amenities = ({
                   {amenities.recreational.gymnasium.enabled && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input.Number
-                        label="Area (sq ft)"
-                        value={amenities.recreational.gymnasium.area}
-                        onChange={(e) => updateAmenity('recreational', 'gymnasium', 'area', parseInt(e.target.value) || 0)}
-                        min={500}
-                        max={5000}
-                      />
-                      <Input.Number
                         label="Equipment Budget (₹)"
                         value={amenities.recreational.gymnasium.equipmentBudget}
                         onChange={(e) => updateAmenity('recreational', 'gymnasium', 'equipmentBudget', parseInt(e.target.value) || 0)}
@@ -482,13 +475,9 @@ const Step5Amenities = ({
                       <h5 className="font-semibold text-gray-800">Clubhouse</h5>
                     </div>
                     {amenities.recreational.clubhouse.enabled && (
-                      <Input.Number
-                        label="Area (sq ft)"
-                        value={amenities.recreational.clubhouse.area}
-                        onChange={(e) => updateAmenity('recreational', 'clubhouse', 'area', parseInt(e.target.value) || 0)}
-                        min={800}
-                        max={5000}
-                      />
+                      <div className="text-sm text-gray-600">
+                        Clubhouse facilities will be configured
+                      </div>
                     )}
                   </div>
 
@@ -503,15 +492,6 @@ const Step5Amenities = ({
                       />
                       <h5 className="font-semibold text-gray-800">Landscaped Garden</h5>
                     </div>
-                    {amenities.recreational.garden.enabled && (
-                      <Input.Number
-                        label="Area (sq ft)"
-                        value={amenities.recreational.garden.area}
-                        onChange={(e) => updateAmenity('recreational', 'garden', 'area', parseInt(e.target.value) || 0)}
-                        min={1000}
-                        max={20000}
-                      />
-                    )}
                   </div>
                 </div>
               </div>

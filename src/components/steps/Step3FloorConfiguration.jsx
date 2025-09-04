@@ -27,6 +27,9 @@ const Step3FloorConfiguration = ({
   const [currentTowerIndex, setCurrentTowerIndex] = useState(0);
   const [currentWingIndex, setCurrentWingIndex] = useState(0);
   const [expandedFloors, setExpandedFloors] = useState({});
+  const [selectedFloors, setSelectedFloors] = useState(new Set());
+  const [bulkConfigMode, setBulkConfigMode] = useState(false);
+  const [bulkConfig, setBulkConfig] = useState({});
   const [validationResult, setValidationResult] = useState({ isValid: true, errors: {}, warnings: [] });
 
   const towers = data.towers || [];
@@ -75,6 +78,34 @@ const Step3FloorConfiguration = ({
     }));
   };
 
+  const toggleFloorSelection = (floorId) => {
+    setSelectedFloors(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(floorId)) {
+        newSet.delete(floorId);
+      } else {
+        newSet.add(floorId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllFloors = () => {
+    setSelectedFloors(new Set(individualFloors.map(floor => floor.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedFloors(new Set());
+  };
+
+  const applyBulkConfiguration = () => {
+    selectedFloors.forEach(floorId => {
+      updateFloorConfig(floorId, bulkConfig);
+    });
+    setBulkConfigMode(false);
+    setBulkConfig({});
+    clearSelection();
+  };
   const toggleFloorUsage = (floorId, usage) => {
     const config = getFloorConfig(floorId);
     const currentUsages = config.usages || [];
@@ -293,6 +324,90 @@ const Step3FloorConfiguration = ({
             className="mb-8"
           />
 
+          {/* Bulk Configuration Panel */}
+          {individualFloors.length > 1 && (
+            <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+              <h4 className="font-bold text-purple-800 mb-4">🔧 Bulk Floor Configuration</h4>
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <Button
+                    variant={bulkConfigMode ? "primary" : "outline"}
+                    size="sm"
+                    onClick={() => setBulkConfigMode(!bulkConfigMode)}
+                  >
+                    {bulkConfigMode ? 'Exit Bulk Mode' : 'Enable Bulk Mode'}
+                  </Button>
+                  
+                  {bulkConfigMode && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={selectAllFloors}>
+                        Select All
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={clearSelection}>
+                        Clear Selection
+                      </Button>
+                    </>
+                  )}
+                </div>
+                
+                {selectedFloors.size > 0 && (
+                  <div className="text-sm text-purple-800 font-medium">
+                    {selectedFloors.size} floor{selectedFloors.size > 1 ? 's' : ''} selected
+                  </div>
+                )}
+              </div>
+
+              {bulkConfigMode && selectedFloors.size > 0 && (
+                <div className="p-4 bg-white rounded-lg border border-purple-200">
+                  <h5 className="font-semibold text-gray-800 mb-4">Apply to Selected Floors</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <Input.Number
+                      label="Units Count"
+                      value={bulkConfig.unitsCount || ''}
+                      onChange={(e) => setBulkConfig(prev => ({ ...prev, unitsCount: parseInt(e.target.value) || 0 }))}
+                      min={0}
+                      max={20}
+                      placeholder="Units per floor"
+                    />
+                    
+                    <div>
+                      <label className="form-label">Usage Types</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {USAGE_OPTIONS[individualFloors[0]?.type]?.slice(0, 6).map(usage => (
+                          <label key={usage} className="flex items-center text-sm">
+                            <input
+                              type="checkbox"
+                              checked={bulkConfig.usages?.includes(usage) || false}
+                              onChange={(e) => {
+                                const usages = bulkConfig.usages || [];
+                                const updatedUsages = e.target.checked
+                                  ? [...usages, usage]
+                                  : usages.filter(u => u !== usage);
+                                setBulkConfig(prev => ({ ...prev, usages: updatedUsages }));
+                              }}
+                              className="w-3 h-3 text-purple-600 rounded mr-2"
+                            />
+                            {usage}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={applyBulkConfiguration}
+                    disabled={Object.keys(bulkConfig).length === 0}
+                  >
+                    Apply Configuration to {selectedFloors.size} Floor{selectedFloors.size > 1 ? 's' : ''}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Individual Floors Configuration */}
           <div className="space-y-6">
             {individualFloors.length === 0 ? (
@@ -312,9 +427,26 @@ const Step3FloorConfiguration = ({
                     {/* Floor Header */}
                     <button
                       onClick={() => toggleFloorExpansion(floor.id)}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100 flex items-center justify-between text-left transition-all duration-200"
+                      className={`
+                        w-full px-6 py-4 flex items-center justify-between text-left transition-all duration-200
+                        ${selectedFloors.has(floor.id) && bulkConfigMode
+                          ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-l-4 border-purple-500'
+                          : 'bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100'
+                        }
+                      `}
                     >
                       <div className="flex items-center space-x-4">
+                        {bulkConfigMode && (
+                          <input
+                            type="checkbox"
+                            checked={selectedFloors.has(floor.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleFloorSelection(floor.id);
+                            }}
+                            className="w-5 h-5 text-purple-600 rounded"
+                          />
+                        )}
                         <div className={`
                           w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm
                           ${floor.type === 'Basement' ? 'bg-gradient-to-r from-gray-600 to-gray-800' :

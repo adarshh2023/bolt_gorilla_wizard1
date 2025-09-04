@@ -1,6 +1,6 @@
-// TemplateBuilder.jsx - Drag and drop template builder for room layouts
-import React, { useState, useCallback,useEffect } from 'react';
-import { X, Save, Plus, Trash2, Move, Home, Bed, Bath, Car, Utensils, Sofa, TreePine, Building, Users, Briefcase, Settings, CheckSquare } from 'lucide-react';
+// TemplateBuilder.jsx - Fixed drag and drop with search and dynamic component creation
+import React, { useState, useCallback, useEffect } from 'react';
+import { X, Save, Plus, Trash2, Move, Home, Bed, Bath, Car, Utensils, Sofa, TreePine, Building, Users, Briefcase, Settings, CheckSquare, Search, Edit } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';
 import Select from './Select';
@@ -27,10 +27,7 @@ const ROOM_TYPES = {
 const PREDEFINED_TEMPLATES = {
   'Standard 2BHK': {
     type: '2BHK',
-    carpetArea: 1100,
-    builtUpArea: 1350,
     balconies: 2,
-    balconyArea: 120,
     attachedWashrooms: 2,
     commonWashrooms: 1,
     roomLayout: {
@@ -42,20 +39,17 @@ const PREDEFINED_TEMPLATES = {
           id: 'living_1',
           name: 'Living Room',
           type: 'living_room',
-          area: 200,
           children: []
         },
         {
           id: 'bedroom_1',
           name: 'Master Bedroom',
           type: 'bedroom',
-          area: 150,
           children: [
             {
               id: 'washroom_1',
               name: 'Attached Washroom',
               type: 'washroom',
-              area: 40,
               children: []
             }
           ]
@@ -64,35 +58,30 @@ const PREDEFINED_TEMPLATES = {
           id: 'bedroom_2',
           name: 'Bedroom 2',
           type: 'bedroom',
-          area: 120,
           children: []
         },
         {
           id: 'kitchen_1',
           name: 'Kitchen',
           type: 'kitchen',
-          area: 80,
           children: []
         },
         {
           id: 'washroom_2',
           name: 'Common Washroom',
           type: 'washroom',
-          area: 35,
           children: []
         },
         {
           id: 'balcony_1',
           name: 'Main Balcony',
           type: 'balcony',
-          area: 60,
           children: []
         },
         {
           id: 'balcony_2',
           name: 'Kitchen Balcony',
           type: 'balcony',
-          area: 30,
           children: []
         }
       ]
@@ -100,10 +89,7 @@ const PREDEFINED_TEMPLATES = {
   },
   'Luxury 3BHK': {
     type: '3BHK',
-    carpetArea: 1500,
-    builtUpArea: 1800,
     balconies: 3,
-    balconyArea: 180,
     attachedWashrooms: 3,
     commonWashrooms: 1,
     roomLayout: {
@@ -115,41 +101,35 @@ const PREDEFINED_TEMPLATES = {
           id: 'entrance_1',
           name: 'Entrance',
           type: 'entrance',
-          area: 50,
           children: []
         },
         {
           id: 'living_1',
           name: 'Living Room',
           type: 'living_room',
-          area: 250,
           children: []
         },
         {
           id: 'dining_1',
           name: 'Dining Room',
           type: 'dining',
-          area: 120,
           children: []
         },
         {
           id: 'bedroom_1',
           name: 'Master Bedroom',
           type: 'bedroom',
-          area: 200,
           children: [
             {
               id: 'washroom_1',
               name: 'Master Washroom',
               type: 'washroom',
-              area: 50,
               children: []
             },
             {
               id: 'balcony_1',
               name: 'Master Balcony',
               type: 'balcony',
-              area: 40,
               children: []
             }
           ]
@@ -158,13 +138,11 @@ const PREDEFINED_TEMPLATES = {
           id: 'bedroom_2',
           name: 'Bedroom 2',
           type: 'bedroom',
-          area: 150,
           children: [
             {
               id: 'washroom_2',
               name: 'Attached Washroom 2',
               type: 'washroom',
-              area: 40,
               children: []
             }
           ]
@@ -173,13 +151,11 @@ const PREDEFINED_TEMPLATES = {
           id: 'bedroom_3',
           name: 'Bedroom 3',
           type: 'bedroom',
-          area: 130,
           children: [
             {
               id: 'washroom_3',
               name: 'Attached Washroom 3',
               type: 'washroom',
-              area: 35,
               children: []
             }
           ]
@@ -188,13 +164,11 @@ const PREDEFINED_TEMPLATES = {
           id: 'kitchen_1',
           name: 'Kitchen',
           type: 'kitchen',
-          area: 100,
           children: [
             {
               id: 'balcony_2',
               name: 'Kitchen Balcony',
               type: 'balcony',
-              area: 25,
               children: []
             }
           ]
@@ -203,28 +177,24 @@ const PREDEFINED_TEMPLATES = {
           id: 'study_1',
           name: 'Study Room',
           type: 'study',
-          area: 80,
           children: []
         },
         {
           id: 'washroom_4',
           name: 'Common Washroom',
           type: 'washroom',
-          area: 35,
           children: []
         },
         {
           id: 'balcony_3',
           name: 'Living Room Balcony',
           type: 'balcony',
-          area: 80,
           children: []
         },
         {
           id: 'storage_1',
           name: 'Storage',
           type: 'storage',
-          area: 30,
           children: []
         }
       ]
@@ -232,10 +202,7 @@ const PREDEFINED_TEMPLATES = {
   },
   'Compact Studio': {
     type: 'Studio',
-    carpetArea: 450,
-    builtUpArea: 550,
     balconies: 1,
-    balconyArea: 40,
     attachedWashrooms: 1,
     commonWashrooms: 0,
     roomLayout: {
@@ -247,28 +214,24 @@ const PREDEFINED_TEMPLATES = {
           id: 'living_1',
           name: 'Living/Bedroom Area',
           type: 'living_room',
-          area: 250,
           children: []
         },
         {
           id: 'kitchen_1',
           name: 'Kitchenette',
           type: 'kitchen',
-          area: 60,
           children: []
         },
         {
           id: 'washroom_1',
           name: 'Washroom',
           type: 'washroom',
-          area: 40,
           children: []
         },
         {
           id: 'balcony_1',
           name: 'Balcony',
           type: 'balcony',
-          area: 40,
           children: []
         }
       ]
@@ -276,10 +239,7 @@ const PREDEFINED_TEMPLATES = {
   },
   'Office Space': {
     type: 'Office',
-    carpetArea: 800,
-    builtUpArea: 950,
     balconies: 0,
-    balconyArea: 0,
     attachedWashrooms: 0,
     commonWashrooms: 2,
     roomLayout: {
@@ -291,63 +251,54 @@ const PREDEFINED_TEMPLATES = {
           id: 'reception_1',
           name: 'Reception',
           type: 'reception',
-          area: 80,
           children: []
         },
         {
           id: 'workspace_1',
           name: 'Open Workspace',
           type: 'workspace',
-          area: 300,
           children: []
         },
         {
           id: 'cabin_1',
           name: 'Manager Cabin',
           type: 'cabin',
-          area: 100,
           children: []
         },
         {
           id: 'cabin_2',
           name: 'Director Cabin',
           type: 'cabin',
-          area: 120,
           children: []
         },
         {
           id: 'meeting_1',
           name: 'Meeting Room',
           type: 'meeting_room',
-          area: 80,
           children: []
         },
         {
           id: 'pantry_1',
           name: 'Pantry',
           type: 'pantry',
-          area: 40,
           children: []
         },
         {
           id: 'washroom_1',
           name: 'Washroom 1',
           type: 'washroom',
-          area: 25,
           children: []
         },
         {
           id: 'washroom_2',
           name: 'Washroom 2',
           type: 'washroom',
-          area: 25,
           children: []
         },
         {
           id: 'storage_1',
           name: 'Storage',
           type: 'storage',
-          area: 30,
           children: []
         }
       ]
@@ -373,13 +324,20 @@ const TemplateBuilder = ({
   const [draggedItem, setDraggedItem] = useState(null);
   const [expandedNodes, setExpandedNodes] = useState(new Set(['root']));
   const [selectedNode, setSelectedNode] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const [unitConfig, setUnitConfig] = useState({
-    carpetArea: 1100,
-    builtUpArea: 1350,
     balconies: 2,
-    balconyArea: 120,
     attachedWashrooms: 2,
     commonWashrooms: 1
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [customRoomTypes, setCustomRoomTypes] = useState({});
+  const [showNewRoomForm, setShowNewRoomForm] = useState(false);
+  const [newRoomData, setNewRoomData] = useState({
+    key: '',
+    label: '',
+    icon: 'Home',
+    color: 'bg-gray-100 border-gray-300 text-gray-800'
   });
 
   // Initialize with selected unit data if available
@@ -387,10 +345,7 @@ const TemplateBuilder = ({
     if (selectedUnit) {
       setTemplateType(selectedUnit.type);
       setUnitConfig({
-        carpetArea: selectedUnit.carpetArea || 1100,
-        builtUpArea: selectedUnit.builtUpArea || 1350,
         balconies: selectedUnit.balconies || 2,
-        balconyArea: selectedUnit.balconyArea || 120,
         attachedWashrooms: selectedUnit.attachedWashrooms || 2,
         commonWashrooms: selectedUnit.commonWashrooms || 1
       });
@@ -403,11 +358,11 @@ const TemplateBuilder = ({
   const generateId = () => `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   const addRoomToParent = (parentId, roomType) => {
+    const allRoomTypes = { ...ROOM_TYPES, ...customRoomTypes };
     const newRoom = {
       id: generateId(),
-      name: ROOM_TYPES[roomType].label,
+      name: allRoomTypes[roomType].label,
       type: roomType,
-      area: 100,
       children: []
     };
 
@@ -420,6 +375,7 @@ const TemplateBuilder = ({
 
     setRoomLayout(addToNode);
     setExpandedNodes(prev => new Set([...prev, parentId]));
+    setDropTarget(null);
   };
 
   const removeRoom = (roomId) => {
@@ -448,6 +404,8 @@ const TemplateBuilder = ({
   };
 
   const moveRoom = (sourceId, targetId) => {
+    if (sourceId === targetId) return;
+    
     let roomToMove = null;
 
     // Find and remove the room
@@ -505,6 +463,7 @@ const TemplateBuilder = ({
 
   const handleDrop = (e, targetId) => {
     e.preventDefault();
+    e.stopPropagation();
     if (draggedItem) {
       addRoomToParent(targetId, draggedItem);
       setDraggedItem(null);
@@ -517,9 +476,23 @@ const TemplateBuilder = ({
 
   const handleRoomDrop = (e, targetId) => {
     e.preventDefault();
+    e.stopPropagation();
     const sourceId = e.dataTransfer.getData('sourceId');
     if (sourceId && sourceId !== targetId) {
       moveRoom(sourceId, targetId);
+    }
+  };
+
+  const handleDragEnter = (e, nodeId) => {
+    e.preventDefault();
+    setDropTarget(nodeId);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    // Only clear drop target if we're leaving the component entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget(null);
     }
   };
 
@@ -557,12 +530,57 @@ const TemplateBuilder = ({
     onApplyToSelected(template);
   };
 
+  const addCustomRoomType = () => {
+    if (!newRoomData.key || !newRoomData.label) {
+      alert('Please enter both key and label for the new room type');
+      return;
+    }
+
+    const iconMap = {
+      'Home': Home,
+      'Bed': Bed,
+      'Bath': Bath,
+      'Car': Car,
+      'Utensils': Utensils,
+      'Sofa': Sofa,
+      'TreePine': TreePine,
+      'Building': Building,
+      'Users': Users,
+      'Briefcase': Briefcase,
+      'Settings': Settings
+    };
+
+    setCustomRoomTypes(prev => ({
+      ...prev,
+      [newRoomData.key]: {
+        icon: iconMap[newRoomData.icon] || Home,
+        label: newRoomData.label,
+        color: newRoomData.color
+      }
+    }));
+
+    setNewRoomData({
+      key: '',
+      label: '',
+      icon: 'Home',
+      color: 'bg-gray-100 border-gray-300 text-gray-800'
+    });
+    setShowNewRoomForm(false);
+  };
+
+  const allRoomTypes = { ...ROOM_TYPES, ...customRoomTypes };
+  const filteredRoomTypes = Object.entries(allRoomTypes).filter(([key, config]) =>
+    config.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    key.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const RoomNode = ({ node, level = 0, parentId = null }) => {
-    const roomType = ROOM_TYPES[node.type] || ROOM_TYPES.living_room;
+    const roomType = allRoomTypes[node.type] || allRoomTypes.living_room;
     const Icon = roomType.icon;
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedNode === node.id;
     const hasChildren = node.children && node.children.length > 0;
+    const isDropTarget = dropTarget === node.id;
 
     return (
       <div className={`ml-${level * 4}`}>
@@ -570,11 +588,14 @@ const TemplateBuilder = ({
           className={`
             flex items-center p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer group
             ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}
+            ${isDropTarget ? 'border-green-500 bg-green-50 shadow-lg' : ''}
             ${roomType.color}
           `}
           onClick={() => setSelectedNode(node.id)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, node.id)}
+          onDragEnter={(e) => handleDragEnter(e, node.id)}
+          onDragLeave={handleDragLeave}
           draggable={node.id !== 'root'}
           onDragStart={(e) => handleRoomMove(e, node.id)}
         >
@@ -595,9 +616,7 @@ const TemplateBuilder = ({
             
             <div className="flex-1">
               <div className="font-medium">{node.name}</div>
-              {node.area && (
-                <div className="text-xs text-gray-600">{node.area} sq ft</div>
-              )}
+              <div className="text-xs text-gray-600 capitalize">{node.type.replace('_', ' ')}</div>
             </div>
           </div>
 
@@ -622,6 +641,11 @@ const TemplateBuilder = ({
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+          )}
+
+          {/* Drop indicator */}
+          {isDropTarget && (
+            <div className="absolute inset-0 border-2 border-green-500 border-dashed rounded-lg pointer-events-none animate-pulse"></div>
           )}
         </div>
 
@@ -654,10 +678,90 @@ const TemplateBuilder = ({
           {/* Left Panel - Room Components */}
           <div className="w-80 border-r border-gray-200 p-6 overflow-y-auto bg-gray-50">
             <h4 className="font-bold text-gray-800 mb-4">🧩 Room Components</h4>
+            
+            {/* Search */}
+            <div className="mb-4">
+              <Input
+                placeholder="Search components..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                icon={Search}
+                className="text-sm"
+              />
+            </div>
+
+            {/* Add Custom Room Type */}
+            <div className="mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNewRoomForm(!showNewRoomForm)}
+                icon={Plus}
+                className="w-full"
+              >
+                Create Custom Component
+              </Button>
+              
+              {showNewRoomForm && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 space-y-3">
+                  <Input
+                    label="Component Key"
+                    placeholder="e.g., study_room"
+                    value={newRoomData.key}
+                    onChange={(e) => setNewRoomData(prev => ({ ...prev, key: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
+                    className="text-sm"
+                  />
+                  <Input
+                    label="Display Name"
+                    placeholder="e.g., Study Room"
+                    value={newRoomData.label}
+                    onChange={(e) => setNewRoomData(prev => ({ ...prev, label: e.target.value }))}
+                    className="text-sm"
+                  />
+                  <Select
+                    label="Icon"
+                    options={['Home', 'Bed', 'Bath', 'Car', 'Utensils', 'Sofa', 'TreePine', 'Building', 'Users', 'Briefcase', 'Settings']}
+                    value={newRoomData.icon}
+                    onChange={(e) => setNewRoomData(prev => ({ ...prev, icon: e.target.value }))}
+                  />
+                  <Select
+                    label="Color Theme"
+                    options={[
+                      { value: 'bg-blue-100 border-blue-300 text-blue-800', label: 'Blue' },
+                      { value: 'bg-green-100 border-green-300 text-green-800', label: 'Green' },
+                      { value: 'bg-purple-100 border-purple-300 text-purple-800', label: 'Purple' },
+                      { value: 'bg-orange-100 border-orange-300 text-orange-800', label: 'Orange' },
+                      { value: 'bg-pink-100 border-pink-300 text-pink-800', label: 'Pink' },
+                      { value: 'bg-gray-100 border-gray-300 text-gray-800', label: 'Gray' }
+                    ]}
+                    value={newRoomData.color}
+                    onChange={(e) => setNewRoomData(prev => ({ ...prev, color: e.target.value }))}
+                  />
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={addCustomRoomType}
+                      disabled={!newRoomData.key || !newRoomData.label}
+                    >
+                      Add
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowNewRoomForm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <p className="text-sm text-gray-600 mb-6">Drag rooms into the layout area or into other rooms to create nested structures</p>
             
             <div className="space-y-3">
-              {Object.entries(ROOM_TYPES).map(([type, config]) => {
+              {filteredRoomTypes.map(([type, config]) => {
                 const Icon = config.icon;
                 return (
                   <div
@@ -697,19 +801,27 @@ const TemplateBuilder = ({
                 />
                 
                 <Input.Number
-                  label="Carpet Area (sq ft)"
-                  value={unitConfig.carpetArea}
-                  onChange={(e) => setUnitConfig(prev => ({ ...prev, carpetArea: parseInt(e.target.value) || 0 }))}
-                  min={200}
-                  max={5000}
+                  label="Balconies"
+                  value={unitConfig.balconies}
+                  onChange={(e) => setUnitConfig(prev => ({ ...prev, balconies: parseInt(e.target.value) || 0 }))}
+                  min={0}
+                  max={5}
                 />
                 
                 <Input.Number
-                  label="Built-up Area (sq ft)"
-                  value={unitConfig.builtUpArea}
-                  onChange={(e) => setUnitConfig(prev => ({ ...prev, builtUpArea: parseInt(e.target.value) || 0 }))}
-                  min={300}
-                  max={6000}
+                  label="Attached Washrooms"
+                  value={unitConfig.attachedWashrooms}
+                  onChange={(e) => setUnitConfig(prev => ({ ...prev, attachedWashrooms: parseInt(e.target.value) || 0 }))}
+                  min={0}
+                  max={5}
+                />
+                
+                <Input.Number
+                  label="Common Washrooms"
+                  value={unitConfig.commonWashrooms}
+                  onChange={(e) => setUnitConfig(prev => ({ ...prev, commonWashrooms: parseInt(e.target.value) || 0 }))}
+                  min={0}
+                  max={3}
                 />
               </div>
             </div>
@@ -742,10 +854,7 @@ const TemplateBuilder = ({
                     if (template.roomLayout) {
                       setRoomLayout(template.roomLayout);
                       setUnitConfig({
-                        carpetArea: template.carpetArea,
-                        builtUpArea: template.builtUpArea,
                         balconies: template.balconies,
-                        balconyArea: template.balconyArea,
                         attachedWashrooms: template.attachedWashrooms,
                         commonWashrooms: template.commonWashrooms
                       });
@@ -759,9 +868,17 @@ const TemplateBuilder = ({
 
             {/* Drop Zone */}
             <div
-              className="min-h-96 border-2 border-dashed border-gray-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-purple-50"
+              className={`
+                min-h-96 border-2 border-dashed rounded-xl p-6 transition-all duration-200
+                ${dropTarget === 'root' 
+                  ? 'border-green-500 bg-green-50' 
+                  : 'border-gray-300 bg-gradient-to-br from-blue-50 to-purple-50'
+                }
+              `}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, 'root')}
+              onDragEnter={(e) => handleDragEnter(e, 'root')}
+              onDragLeave={handleDragLeave}
             >
               {roomLayout.children.length === 0 ? (
                 <div className="text-center py-12">
@@ -842,18 +959,10 @@ const TemplateBuilder = ({
                           value={selectedRoom.name}
                           onChange={(e) => updateRoom(selectedNode, { name: e.target.value })}
                         />
-                        
-                        <Input.Number
-                          label="Area (sq ft)"
-                          value={selectedRoom.area || 0}
-                          onChange={(e) => updateRoom(selectedNode, { area: parseInt(e.target.value) || 0 })}
-                          min={10}
-                          max={1000}
-                        />
 
                         <Select
                           label="Room Type"
-                          options={Object.entries(ROOM_TYPES).map(([key, config]) => ({
+                          options={Object.entries(allRoomTypes).map(([key, config]) => ({
                             value: key,
                             label: config.label
                           }))}
@@ -865,7 +974,7 @@ const TemplateBuilder = ({
                           <h6 className="font-medium text-gray-700 mb-2">Add Sub-rooms</h6>
                           <div className="grid grid-cols-2 gap-2">
                             {['washroom', 'balcony', 'storage'].map(roomType => {
-                              const config = ROOM_TYPES[roomType];
+                              const config = allRoomTypes[roomType];
                               const Icon = config.icon;
                               return (
                                 <button
@@ -915,10 +1024,7 @@ const TemplateBuilder = ({
                       setRoomLayout(template.roomLayout);
                       setTemplateType(template.type);
                       setUnitConfig({
-                        carpetArea: template.carpetArea,
-                        builtUpArea: template.builtUpArea,
                         balconies: template.balconies,
-                        balconyArea: template.balconyArea,
                         attachedWashrooms: template.attachedWashrooms,
                         commonWashrooms: template.commonWashrooms
                       });
@@ -927,7 +1033,7 @@ const TemplateBuilder = ({
                     className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                   >
                     <div className="font-medium text-gray-800">{name}</div>
-                    <div className="text-xs text-gray-600">{template.carpetArea} sq ft • {template.type}</div>
+                    <div className="text-xs text-gray-600">{template.type}</div>
                   </button>
                 ))}
               </div>
