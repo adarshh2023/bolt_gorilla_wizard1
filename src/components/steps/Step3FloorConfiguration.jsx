@@ -1,12 +1,13 @@
-// Step3FloorConfiguration.jsx - Individual floor configuration with multiple usage options
+// Step3FloorConfiguration.jsx - Individual floor configuration with flat numbering and improved UX
 import React, { useState, useEffect } from 'react';
-import { Building2, Layers, Copy, Plus, Trash2, ChevronDown, ChevronRight, Settings } from 'lucide-react';
+import { Building2, Layers, Copy, Plus, Trash2, ChevronDown, ChevronRight, Settings, Hash } from 'lucide-react';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import StepNavigation from '../wizard/StepNavigation';
 import ValidationSummary from '../wizard/ValidationSummary';
+import { FLAT_NUMBERING_TYPES } from '../../utils/constants';
 
 const USAGE_OPTIONS = {
   Basement: ['Parking', 'Storage', 'Utilities', 'Retail', 'Restaurant', 'Gym', 'Swimming Pool', 'Mechanical Room', 'Generator Room', 'Water Treatment'],
@@ -24,9 +25,9 @@ const Step3FloorConfiguration = ({
   onSave
 }) => {
   const [floorConfigurations, setFloorConfigurations] = useState(data.floorConfigurations || {});
+  const [flatNumberingType, setFlatNumberingType] = useState(data.flatNumberingType || 'wing-floor-unit');
   const [currentTowerIndex, setCurrentTowerIndex] = useState(0);
   const [currentWingIndex, setCurrentWingIndex] = useState(0);
-  const [expandedFloors, setExpandedFloors] = useState({});
   const [selectedFloors, setSelectedFloors] = useState(new Set());
   const [bulkConfigMode, setBulkConfigMode] = useState(false);
   const [bulkConfig, setBulkConfig] = useState({});
@@ -66,6 +67,7 @@ const Step3FloorConfiguration = ({
     return floorConfigurations[floorId] || {
       usages: [],
       unitsCount: 0,
+      floorType: 'Residential',
       notes: '',
       customConfig: {}
     };
@@ -106,6 +108,7 @@ const Step3FloorConfiguration = ({
     setBulkConfig({});
     clearSelection();
   };
+
   const toggleFloorUsage = (floorId, usage) => {
     const config = getFloorConfig(floorId);
     const currentUsages = config.usages || [];
@@ -160,13 +163,6 @@ const Step3FloorConfiguration = ({
     }
   };
 
-  const toggleFloorExpansion = (floorId) => {
-    setExpandedFloors(prev => ({
-      ...prev,
-      [floorId]: !prev[floorId]
-    }));
-  };
-
   const hasNextWing = () => {
     if (!currentTower) return false;
     return currentWingIndex < currentTower.wings.length - 1;
@@ -218,7 +214,7 @@ const Step3FloorConfiguration = ({
 
   const handleNext = () => {
     if (isLastWing()) {
-      onUpdate({ floorConfigurations });
+      onUpdate({ floorConfigurations, flatNumberingType });
       onNext();
     } else {
       goToNextWing();
@@ -234,8 +230,8 @@ const Step3FloorConfiguration = ({
   };
 
   const handleSave = () => {
-    onUpdate({ floorConfigurations });
-    onSave?.({ floorConfigurations });
+    onUpdate({ floorConfigurations, flatNumberingType });
+    onSave?.({ floorConfigurations, flatNumberingType });
   };
 
   if (!currentTower || !currentWing) {
@@ -275,11 +271,51 @@ const Step3FloorConfiguration = ({
             </div>
           </div>
           <Card.Subtitle>
-            Configure each individual floor with specific usage types and unit counts. Multiple usage types can be selected for each floor.
+            Configure each individual floor with specific usage types and unit counts. Set up flat numbering system for the entire project.
           </Card.Subtitle>
         </Card.Header>
 
         <Card.Content>
+          {/* Flat Numbering System */}
+          <div className="mb-8 p-6 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200">
+            <div className="flex items-center space-x-3 mb-4">
+              <Hash className="w-6 h-6 text-yellow-600" />
+              <h4 className="text-lg font-bold text-yellow-800">Flat Numbering System</h4>
+            </div>
+            <p className="text-sm text-yellow-700 mb-4">
+              Choose how flats will be numbered throughout your project. This will be applied consistently across all towers and wings.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {FLAT_NUMBERING_TYPES.map((option) => (
+                <label
+                  key={option.value}
+                  className={`
+                    p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                    ${flatNumberingType === option.value
+                      ? 'border-yellow-500 bg-yellow-100 shadow-md'
+                      : 'border-yellow-200 bg-white hover:border-yellow-300 hover:bg-yellow-50'
+                    }
+                  `}
+                >
+                  <input
+                    type="radio"
+                    name="flatNumberingType"
+                    value={option.value}
+                    checked={flatNumberingType === option.value}
+                    onChange={(e) => setFlatNumberingType(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="font-semibold text-gray-800 mb-2">{option.label}</div>
+                  <div className="text-sm text-gray-600 mb-2">{option.description}</div>
+                  <div className="text-xs text-yellow-700 font-mono bg-yellow-200 px-2 py-1 rounded">
+                    Example: {option.example}
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {/* Current Wing Header */}
           <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
             <div className="flex items-center space-x-4">
@@ -361,7 +397,15 @@ const Step3FloorConfiguration = ({
               {bulkConfigMode && selectedFloors.size > 0 && (
                 <div className="p-4 bg-white rounded-lg border border-purple-200">
                   <h5 className="font-semibold text-gray-800 mb-4">Apply to Selected Floors</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <Select
+                      label="Floor Type"
+                      options={['Residential', 'Commercial']}
+                      value={bulkConfig.floorType || ''}
+                      onChange={(e) => setBulkConfig(prev => ({ ...prev, floorType: e.target.value }))}
+                      placeholder="Select floor type"
+                    />
+                    
                     <Input.Number
                       label="Units Count"
                       value={bulkConfig.unitsCount || ''}
@@ -409,7 +453,7 @@ const Step3FloorConfiguration = ({
           )}
 
           {/* Individual Floors Configuration */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {individualFloors.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
                 <Layers className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -419,19 +463,18 @@ const Step3FloorConfiguration = ({
             ) : (
               individualFloors.map((floor) => {
                 const config = getFloorConfig(floor.id);
-                const isExpanded = expandedFloors[floor.id];
+                const isSelected = selectedFloors.has(floor.id);
                 const availableUsages = USAGE_OPTIONS[floor.type] || [];
 
                 return (
                   <div key={floor.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                    {/* Floor Header */}
-                    <button
-                      onClick={() => toggleFloorExpansion(floor.id)}
+                    {/* Floor Header - Non-expandable, just selection */}
+                    <div
                       className={`
-                        w-full px-6 py-4 flex items-center justify-between text-left transition-all duration-200
-                        ${selectedFloors.has(floor.id) && bulkConfigMode
+                        px-6 py-4 flex items-center justify-between transition-all duration-200
+                        ${isSelected && bulkConfigMode
                           ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-l-4 border-purple-500'
-                          : 'bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100'
+                          : 'bg-gradient-to-r from-gray-50 to-blue-50'
                         }
                       `}
                     >
@@ -439,11 +482,8 @@ const Step3FloorConfiguration = ({
                         {bulkConfigMode && (
                           <input
                             type="checkbox"
-                            checked={selectedFloors.has(floor.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleFloorSelection(floor.id);
-                            }}
+                            checked={isSelected}
+                            onChange={() => toggleFloorSelection(floor.id)}
                             className="w-5 h-5 text-purple-600 rounded"
                           />
                         )}
@@ -464,24 +504,72 @@ const Step3FloorConfiguration = ({
                         <div>
                           <h4 className="font-semibold text-gray-900">{floor.displayName}</h4>
                           <p className="text-sm text-gray-600">
-                            {config.usages?.length > 0 ? config.usages.join(', ') : 'No usage selected'} 
-                            {config.unitsCount > 0 && ` • ${config.unitsCount} units`}
+                            {config.floorType || 'Not configured'} • {config.unitsCount || 0} units
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className={`
                           w-3 h-3 rounded-full
-                          ${config.usages?.length > 0 ? 'bg-green-500' : 'bg-gray-300'}
+                          ${config.floorType ? 'bg-green-500' : 'bg-gray-300'}
                         `}></div>
-                        {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
                       </div>
-                    </button>
+                    </div>
 
-                    {/* Floor Configuration */}
-                    {isExpanded && (
-                      <div className="p-6 space-y-6 animate-slide-up">
-                        {/* Usage Selection */}
+                    {/* Floor Configuration - Always visible, no expansion */}
+                    <div className="p-6 space-y-6 bg-white">
+                      {/* Floor Type Selection for Floors type */}
+                      {floor.type === 'Floors' && (
+                        <div>
+                          <label className="form-label">Floor Type</label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <label className={`
+                              flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                              ${config.floorType === 'Residential' 
+                                ? 'border-blue-500 bg-blue-50 text-blue-800' 
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                              }
+                            `}>
+                              <input
+                                type="radio"
+                                name={`floorType-${floor.id}`}
+                                value="Residential"
+                                checked={config.floorType === 'Residential'}
+                                onChange={(e) => updateFloorConfig(floor.id, { floorType: e.target.value })}
+                                className="w-4 h-4 text-blue-600 mr-3"
+                              />
+                              <div>
+                                <div className="font-medium">Residential</div>
+                                <div className="text-xs opacity-75">Apartments, homes</div>
+                              </div>
+                            </label>
+                            
+                            <label className={`
+                              flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                              ${config.floorType === 'Commercial' 
+                                ? 'border-orange-500 bg-orange-50 text-orange-800' 
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                              }
+                            `}>
+                              <input
+                                type="radio"
+                                name={`floorType-${floor.id}`}
+                                value="Commercial"
+                                checked={config.floorType === 'Commercial'}
+                                onChange={(e) => updateFloorConfig(floor.id, { floorType: e.target.value })}
+                                className="w-4 h-4 text-orange-600 mr-3"
+                              />
+                              <div>
+                                <div className="font-medium">Commercial</div>
+                                <div className="text-xs opacity-75">Offices, shops</div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Usage Selection for non-Floors types */}
+                      {floor.type !== 'Floors' && (
                         <div>
                           <label className="form-label">Floor Usage (Select Multiple)</label>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -504,145 +592,46 @@ const Step3FloorConfiguration = ({
                             ))}
                           </div>
                         </div>
+                      )}
 
-                        {/* Units Configuration */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <Input.Number
-                            label="Number of Units on this Floor"
-                            value={config.unitsCount || 0}
-                            onChange={(e) => updateFloorConfig(floor.id, { unitsCount: parseInt(e.target.value) || 0 })}
-                            min={0}
-                            max={20}
-                            helperText="Total units/spaces on this specific floor"
-                          />
-
-                          {/* Custom Configuration based on usage */}
-                          {config.usages?.includes('Parking') && (
-                            <Input.Number
-                              label="Parking Spaces"
-                              value={config.customConfig?.parkingSpaces || 0}
-                              onChange={(e) => updateFloorConfig(floor.id, { 
-                                customConfig: { 
-                                  ...config.customConfig, 
-                                  parkingSpaces: parseInt(e.target.value) || 0 
-                                }
-                              })}
-                              min={0}
-                              max={200}
-                              helperText="Number of parking spaces"
-                            />
-                          )}
-
-                          {config.usages?.includes('Storage') && (
-                            <Input.Number
-                              label="Storage Area (sq ft)"
-                              value={config.customConfig?.storageArea || 0}
-                              onChange={(e) => updateFloorConfig(floor.id, { 
-                                customConfig: { 
-                                  ...config.customConfig, 
-                                  storageArea: parseInt(e.target.value) || 0 
-                                }
-                              })}
-                              min={0}
-                              helperText="Total storage area"
-                            />
-                          )}
-
-                          {config.usages?.includes('Retail') && (
-                            <Input.Number
-                              label="Retail Shops"
-                              value={config.customConfig?.retailShops || 0}
-                              onChange={(e) => updateFloorConfig(floor.id, { 
-                                customConfig: { 
-                                  ...config.customConfig, 
-                                  retailShops: parseInt(e.target.value) || 0 
-                                }
-                              })}
-                              min={0}
-                              helperText="Number of retail spaces"
-                            />
-                          )}
-
-                          {config.usages?.includes('Office') && (
-                            <Input.Number
-                              label="Office Spaces"
-                              value={config.customConfig?.officeSpaces || 0}
-                              onChange={(e) => updateFloorConfig(floor.id, { 
-                                customConfig: { 
-                                  ...config.customConfig, 
-                                  officeSpaces: parseInt(e.target.value) || 0 
-                                }
-                              })}
-                              min={0}
-                              helperText="Number of office units"
-                            />
-                          )}
-                        </div>
-
-                        {/* Additional Configuration */}
-                        {config.usages?.includes('Amenities') && (
-                          <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                            <h5 className="font-semibold text-purple-800 mb-3">Amenity Features</h5>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                              {['Swimming Pool', 'Gym', 'Clubhouse', 'Library', 'Game Room', 'Spa', 'Café', 'Business Center'].map(feature => (
-                                <label key={feature} className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={config.customConfig?.amenityFeatures?.includes(feature) || false}
-                                    onChange={(e) => {
-                                      const features = config.customConfig?.amenityFeatures || [];
-                                      const updatedFeatures = e.target.checked 
-                                        ? [...features, feature]
-                                        : features.filter(f => f !== feature);
-                                      updateFloorConfig(floor.id, { 
-                                        customConfig: { 
-                                          ...config.customConfig, 
-                                          amenityFeatures: updatedFeatures 
-                                        }
-                                      });
-                                    }}
-                                    className="w-4 h-4 text-purple-600 rounded mr-2"
-                                  />
-                                  <span className="text-sm">{feature}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Floor Notes */}
-                        <Input.TextArea
-                          label="Floor Notes"
-                          value={config.notes || ''}
-                          onChange={(e) => updateFloorConfig(floor.id, { notes: e.target.value })}
-                          placeholder="Special requirements, notes, or specifications for this floor"
-                          rows={2}
+                      {/* Units Configuration */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Input.Number
+                          label="Number of Units on this Floor"
+                          value={config.unitsCount || 0}
+                          onChange={(e) => updateFloorConfig(floor.id, { unitsCount: parseInt(e.target.value) || 0 })}
+                          min={0}
+                          max={20}
+                          helperText="Total units/spaces on this specific floor"
                         />
 
-                        {/* Floor Summary */}
-                        <div className="p-4 bg-gradient-to-r from-blue-100 to-green-100 rounded-lg border border-blue-200">
-                          <h5 className="font-semibold text-gray-800 mb-2">📊 {floor.displayName} Summary</h5>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="font-medium text-blue-800">Usage Types:</span>
-                              <p className="text-gray-700">{config.usages?.length || 0} selected</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-green-800">Units:</span>
-                              <p className="text-gray-700">{config.unitsCount || 0} units</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-purple-800">Parking:</span>
-                              <p className="text-gray-700">{config.customConfig?.parkingSpaces || 0} spaces</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-orange-800">Status:</span>
-                              <p className="text-gray-700">{config.usages?.length > 0 ? 'Configured' : 'Pending'}</p>
-                            </div>
-                          </div>
-                        </div>
+                        {/* Custom Configuration based on usage */}
+                        {config.usages?.includes('Parking') && (
+                          <Input.Number
+                            label="Parking Spaces"
+                            value={config.customConfig?.parkingSpaces || 0}
+                            onChange={(e) => updateFloorConfig(floor.id, { 
+                              customConfig: { 
+                                ...config.customConfig, 
+                                parkingSpaces: parseInt(e.target.value) || 0 
+                              }
+                            })}
+                            min={0}
+                            max={200}
+                            helperText="Number of parking spaces"
+                          />
+                        )}
                       </div>
-                    )}
+
+                      {/* Floor Notes */}
+                      <Input.TextArea
+                        label="Floor Notes"
+                        value={config.notes || ''}
+                        onChange={(e) => updateFloorConfig(floor.id, { notes: e.target.value })}
+                        placeholder="Special requirements, notes, or specifications for this floor"
+                        rows={2}
+                      />
+                    </div>
                   </div>
                 );
               })
@@ -672,7 +661,7 @@ const Step3FloorConfiguration = ({
                 <div className="text-3xl font-bold text-purple-300">
                   {individualFloors.filter(floor => {
                     const config = getFloorConfig(floor.id);
-                    return config.usages?.length > 0;
+                    return config.floorType || config.usages?.length > 0;
                   }).length}
                 </div>
                 <div className="text-sm text-gray-300">Configured Floors</div>

@@ -17,7 +17,6 @@ const Step5ReviewFinalize = ({
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
     structure: true,
-    units: false,
     validation: false
   });
   const [exportStatus, setExportStatus] = useState('');
@@ -45,31 +44,40 @@ const Step5ReviewFinalize = ({
     };
 
     // Calculate tower and wing stats
-    data.towers?.forEach(tower => {
-      stats.totalWings += tower.wings?.length || 0;
-      
-      tower.wings?.forEach(wing => {
-        Object.values(wing.floorTypes || {}).forEach(floorType => {
-          if (floorType.enabled) {
-            stats.totalFloors += floorType.count || 0;
-            // Fixed: Use floorType name/key instead of object
-            const floorTypeName = floorType.name || floorType.type || 'Unknown';
-            stats.floorTypeBreakdown[floorTypeName] = (stats.floorTypeBreakdown[floorTypeName] || 0) + (floorType.count || 0);
-          }
-        });
+    if (data.towers) {
+      data.towers.forEach(tower => {
+        stats.totalWings += tower.wings?.length || 0;
+        
+        if (tower.wings) {
+          tower.wings.forEach(wing => {
+            if (wing.floorTypes) {
+              Object.values(wing.floorTypes).forEach(floorType => {
+                if (floorType.enabled) {
+                  stats.totalFloors += floorType.count || 0;
+                  const floorTypeName = floorType.name || floorType.type || 'Unknown';
+                  stats.floorTypeBreakdown[floorTypeName] = (stats.floorTypeBreakdown[floorTypeName] || 0) + (floorType.count || 0);
+                }
+              });
+            }
+          });
+        }
       });
-    });
+    }
 
     // Calculate unit stats
-    Object.values(data.units || {}).forEach(floorUnits => {
-      floorUnits.forEach(unit => {
-        stats.totalUnits++;
-        stats.totalCarpetArea += unit.carpetArea || 0;
-        stats.totalBuiltUpArea += unit.builtUpArea || 0;
-        const unitType = unit.type || 'Unknown';
-        stats.unitBreakdown[unitType] = (stats.unitBreakdown[unitType] || 0) + 1;
+    if (data.units) {
+      Object.values(data.units).forEach(floorUnits => {
+        if (Array.isArray(floorUnits)) {
+          floorUnits.forEach(unit => {
+            stats.totalUnits++;
+            stats.totalCarpetArea += unit.carpetArea || 0;
+            stats.totalBuiltUpArea += unit.builtUpArea || 0;
+            const unitType = unit.type || 'Unknown';
+            stats.unitBreakdown[unitType] = (stats.unitBreakdown[unitType] || 0) + 1;
+          });
+        }
       });
-    });
+    }
 
     // Calculate timeline
     if (data.startDate && data.endDate) {
@@ -126,7 +134,7 @@ const Step5ReviewFinalize = ({
     }
 
     // Validate units
-    const totalUnits = Object.values(data.units || {}).reduce((sum, floorUnits) => sum + (floorUnits?.length || 0), 0);
+    const totalUnits = data.units ? Object.values(data.units).reduce((sum, floorUnits) => sum + (Array.isArray(floorUnits) ? floorUnits.length : 0), 0) : 0;
     if (totalUnits === 0) {
       warnings.push({ step: 4, field: 'units', message: 'No units configured - project may be incomplete' });
     }
@@ -150,63 +158,69 @@ const Step5ReviewFinalize = ({
   const generateProjectTree = () => {
     const tree = [];
     
-    data.towers?.forEach((tower, towerIndex) => {
-      const towerNode = {
-        id: tower.id || `tower-${towerIndex}`,
-        type: 'tower',
-        name: tower.name || tower.customName || `Tower ${towerIndex + 1}`,
-        children: []
-      };
-
-      tower.wings?.forEach((wing, wingIndex) => {
-        const wingNode = {
-          id: wing.id || `wing-${wingIndex}`,
-          type: 'wing',
-          name: wing.name || `Wing ${wingIndex + 1}`,
-          wingType: wing.type || 'Standard',
+    if (data.towers) {
+      data.towers.forEach((tower, towerIndex) => {
+        const towerNode = {
+          id: tower.id || `tower-${towerIndex}`,
+          type: 'tower',
+          name: tower.name || tower.customName || `Tower ${towerIndex + 1}`,
           children: []
         };
 
-        Object.entries(wing.floorTypes || {}).forEach(([floorTypeKey, config]) => {
-          if (config.enabled && (config.count || 0) > 0) {
-            for (let i = 1; i <= (config.count || 0); i++) {
-              const floorKey = `${tower.id || `tower-${towerIndex}`}-${wing.id || `wing-${wingIndex}`}-${floorTypeKey}-${i}`;
-              const floorUnits = data.units?.[floorKey] || [];
-              const floorConfig = data.floorConfigurations?.[floorKey] || {};
-              
-              const floorNode = {
-                id: floorKey,
-                type: 'floor',
-                name: `${config.name || floorTypeKey} ${i}`,
-                floorType: floorTypeKey,
-                primaryType: floorConfig.floorType,
-                usages: floorConfig.usages || [],
-                unitsCount: floorUnits.length,
-                children: floorUnits.map((unit, unitIndex) => ({
-                  id: unit.id || `unit-${unitIndex}`,
-                  type: 'unit',
-                  name: unit.id || `Unit ${unitIndex + 1}`,
-                  unitType: unit.type || 'Unknown',
-                  templateName: unit.templateName,
-                  area: unit.carpetArea || 0,
-                  status: unit.status || 'Available',
-                  balconies: unit.balconies || 0,
-                  washrooms: (unit.attachedWashrooms || 0) + (unit.commonWashrooms || 0),
-                  frontage: unit.frontage || 0,
-                  monthlyRent: unit.monthlyRent || 0
-                }))
-              };
-              
-              wingNode.children.push(floorNode);
+        if (tower.wings) {
+          tower.wings.forEach((wing, wingIndex) => {
+            const wingNode = {
+              id: wing.id || `wing-${wingIndex}`,
+              type: 'wing',
+              name: wing.name || `Wing ${wingIndex + 1}`,
+              wingType: wing.type || 'Standard',
+              children: []
+            };
+
+            if (wing.floorTypes) {
+              Object.entries(wing.floorTypes).forEach(([floorTypeKey, config]) => {
+                if (config.enabled && (config.count || 0) > 0) {
+                  for (let i = 1; i <= (config.count || 0); i++) {
+                    const floorKey = `${tower.id || `tower-${towerIndex}`}-${wing.id || `wing-${wingIndex}`}-${floorTypeKey}-${i}`;
+                    const floorUnits = data.units?.[floorKey] || [];
+                    const floorConfig = data.floorConfigurations?.[floorKey] || {};
+                    
+                    const floorNode = {
+                      id: floorKey,
+                      type: 'floor',
+                      name: `${floorTypeKey} ${i}`,
+                      floorType: floorTypeKey,
+                      primaryType: floorConfig.floorType,
+                      usages: floorConfig.usages || [],
+                      unitsCount: Array.isArray(floorUnits) ? floorUnits.length : 0,
+                      children: Array.isArray(floorUnits) ? floorUnits.map((unit, unitIndex) => ({
+                        id: unit.id || `unit-${unitIndex}`,
+                        type: 'unit',
+                        name: unit.id || `Unit ${unitIndex + 1}`,
+                        unitType: unit.type || 'Unknown',
+                        templateName: unit.templateName,
+                        area: unit.carpetArea || 0,
+                        status: unit.status || 'Available',
+                        balconies: unit.balconies || 0,
+                        washrooms: (unit.attachedWashrooms || 0) + (unit.commonWashrooms || 0),
+                        frontage: unit.frontage || 0,
+                        monthlyRent: unit.monthlyRent || 0
+                      })) : []
+                    };
+                    
+                    wingNode.children.push(floorNode);
+                  }
+                }
+              });
             }
-          }
-        });
 
-        towerNode.children.push(wingNode);
+            towerNode.children.push(wingNode);
+          });
+        }
+
+        tree.push(towerNode);
       });
-
-      tree.push(towerNode);
-    });
+    }
 
     return tree;
   };
@@ -287,11 +301,10 @@ const Step5ReviewFinalize = ({
       }
     };
 
-    // Fixed: Use padding instead of dynamic margin class
-    const paddingClass = `pl-${Math.min(level * 4, 16)}`;
+    const paddingStyle = { paddingLeft: `${level * 16}px` };
 
     return (
-      <div className={paddingClass}>
+      <div style={paddingStyle}>
         <div className={`
           flex items-center p-3 rounded-lg border mb-2 transition-all duration-200
           ${getNodeColor()}
@@ -506,17 +519,17 @@ const Step5ReviewFinalize = ({
 
                   <div className="p-4 bg-white rounded-lg border border-blue-200">
                     <h5 className="font-semibold text-gray-800 mb-3">🏠 Unit Breakdown</h5>
-                    <div className="space-y-2 text-sm">
-                      {Object.entries(projectStats.unitBreakdown).map(([type, count]) => (
-                        <div key={type} className="flex justify-between">
-                          <span>{type}:</span>
-                          <span className="font-medium">{count} units</span>
-                        </div>
-                      ))}
-                      {Object.keys(projectStats.unitBreakdown).length === 0 && (
-                        <div className="text-gray-500 italic">No units configured yet</div>
-                      )}
-                    </div>
+                   <div className="space-y-2 text-sm">
+  {projectStats?.unitBreakdown && Object.entries(projectStats.unitBreakdown).map(([type, count]) => (
+    <div key={type} className="flex justify-between">
+      <span>{type}:</span>
+      <span className="font-medium">{count} units</span>
+    </div>
+  ))}
+  {(!projectStats?.unitBreakdown || Object.keys(projectStats.unitBreakdown).length === 0) && (
+    <div className="text-gray-500 italic">No units configured yet</div>
+  )}
+</div>
                   </div>
                 </div>
               </div>
@@ -570,7 +583,7 @@ const Step5ReviewFinalize = ({
                   <div><strong>Type:</strong> {data.projectType || 'Not specified'}</div>
                   <div><strong>Location:</strong> {data.city || 'N/A'}, {data.state || 'N/A'}</div>
                   <div><strong>Manager:</strong> {data.manager || 'Not assigned'}</div>
-                  <div><strong>Duration:</strong> {projectStats.timeline.duration || 0} months</div>
+                  <div><strong>Duration:</strong> months</div>
                 </div>
               </div>
 
@@ -591,9 +604,9 @@ const Step5ReviewFinalize = ({
                   <div><strong>Numbering:</strong> {data.flatNumberingType?.replace('-', ' ') || 'Default'}</div>
                   <div><strong>Custom Templates:</strong> {Object.keys(data.customTemplates || {}).length}</div>
                   <div><strong>Units with Templates:</strong> {
-                    Object.values(data.units || {}).reduce((sum, floorUnits) => 
-                      sum + (floorUnits?.filter(unit => unit.templateName)?.length || 0), 0
-                    )
+                    data.units ? Object.values(data.units).reduce((sum, floorUnits) => 
+                      sum + (Array.isArray(floorUnits) ? floorUnits.filter(unit => unit.templateName)?.length || 0 : 0), 0
+                    ) : 0
                   }</div>
                   <div><strong>Project Scale:</strong> {data.phaseType || 'Single'} Phase</div>
                 </div>
@@ -611,12 +624,12 @@ const Step5ReviewFinalize = ({
                   <li>📐 {projectStats.totalCarpetArea?.toLocaleString() || 0} sq ft Total Area</li>
                 </ul>
                 <ul className="space-y-2">
-                  {Object.entries(projectStats.unitBreakdown).slice(0, 4).map(([type, count]) => (
-                    <li key={type}>🏘️ {count} {type} Unit{count !== 1 ? 's' : ''}</li>
-                  ))}
-                  {Object.keys(projectStats.unitBreakdown).length === 0 && (
-                    <li className="text-gray-400 italic">No unit types configured</li>
-                  )}
+                  {projectStats?.unitBreakdown && Object.entries(projectStats.unitBreakdown).slice(0, 4).map(([type, count]) => (
+  <li key={type}>🏘️ {count} {type} Unit{count !== 1 ? 's' : ''}</li>
+))}
+                  {(!projectStats?.unitBreakdown || Object.keys(projectStats.unitBreakdown).length === 0) && (
+  <li className="text-gray-400 italic">No unit types configured</li>
+)}
                 </ul>
               </div>
             </div>

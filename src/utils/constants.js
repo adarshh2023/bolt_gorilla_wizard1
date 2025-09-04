@@ -1,8 +1,3 @@
-// Updated constants.js - Removed phases, updated wizard steps
-import { FLAT_NUMBERING_TYPES } from "./constants";
-
-export { FLAT_NUMBERING_TYPES };
-
 export const WIZARD_STEPS = [
   { id: 1, name: "Project Overview", key: "overview" },
   { id: 2, name: "Tower & Wing Declaration", key: "towers" },

@@ -9,8 +9,7 @@ import Step1ProjectOverview from './components/steps/Step1ProjectOverview';
 import Step2TowerWingDeclaration from './components/steps/Step2TowerWingDeclaration';
 import Step3FloorConfiguration from './components/steps/Step3FloorConfiguration';
 import Step4UnitConfiguration from './components/steps/Step4UnitConfiguration';
-import Step5Amenities from './components/steps/Step5Amenities';
-import Step6ReviewFinalize from './components/steps/Step6ReviewFinalize';
+import Step5ReviewFinalize from './components/steps/Step5ReviewFinalize';
 
 // Placeholder components for remaining steps
 const PlaceholderStep = ({ stepNumber, stepName, onNext, onPrevious }) => (
@@ -126,9 +125,7 @@ const ProjectWizard = () => {
       case 4:
         return <Step4UnitConfiguration {...commonProps} />;
       case 5:
-        return <Step5Amenities {...commonProps} />;
-      case 6:
-        return <Step6ReviewFinalize {...commonProps} />;
+        return <Step5ReviewFinalize {...commonProps} />;
       default:
         return (
           <div className="text-center py-12">
