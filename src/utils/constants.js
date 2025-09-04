@@ -1,11 +1,14 @@
 // Updated constants.js - Removed phases, updated wizard steps
+import { FLAT_NUMBERING_TYPES } from "./constants";
+
+export { FLAT_NUMBERING_TYPES };
+
 export const WIZARD_STEPS = [
   { id: 1, name: "Project Overview", key: "overview" },
   { id: 2, name: "Tower & Wing Declaration", key: "towers" },
   { id: 3, name: "Floor Configuration", key: "floors" },
   { id: 4, name: "Unit Configuration", key: "units" },
-  { id: 5, name: "Amenities", key: "amenities" },
-  { id: 6, name: "Review & Finalize", key: "review" },
+  { id: 5, name: "Review & Finalize", key: "review" },
 ];
 
 export const PROJECT_TYPES = ["Residential", "Commercial", "Mall", "Mixed-use"];
@@ -22,6 +25,33 @@ export const TOWER_PRESET_OPTIONS = [
   "Main Tower",
   "Central Tower",
   "Custom",
+];
+
+export const FLAT_NUMBERING_TYPES = [
+  {
+    value: "wing-floor-unit",
+    label: "Wing-Floor-Unit (A-101, B-205)",
+    description: "Wing letter + Floor number + Unit number",
+    example: "A-101, A-102, B-201, B-202",
+  },
+  {
+    value: "tower-wing-floor-unit",
+    label: "Tower-Wing-Floor-Unit (T1A101, T2B205)",
+    description: "Tower + Wing + Floor + Unit",
+    example: "T1A101, T1A102, T2B201, T2B202",
+  },
+  {
+    value: "sequential",
+    label: "Sequential (101, 102, 201, 202)",
+    description: "Floor number + Unit sequence",
+    example: "101, 102, 103, 201, 202, 203",
+  },
+  {
+    value: "custom",
+    label: "Custom Pattern",
+    description: "Define your own numbering pattern",
+    example: "Custom format",
+  },
 ];
 
 export const WING_TYPES = ["Commercial", "Residential", "Mixed"];

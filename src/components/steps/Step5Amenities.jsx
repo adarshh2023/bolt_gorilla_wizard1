@@ -1,5 +1,6 @@
+// Step3FloorConfiguration.jsx - Individual floor configuration with multiple usage options
 import React, { useState, useEffect } from 'react';
-import { Waves,Settings, Dumbbell, Users, Shield, Zap, Droplets, Recycle, Car, Wifi, TreePine } from 'lucide-react';
+import { Building2, Layers, Copy, Plus, Trash2, ChevronDown, ChevronRight, Settings } from 'lucide-react';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -7,932 +8,716 @@ import Button from '../ui/Button';
 import StepNavigation from '../wizard/StepNavigation';
 import ValidationSummary from '../wizard/ValidationSummary';
 
-const Step5Amenities = ({ 
+const USAGE_OPTIONS = {
+  Basement: ['Parking', 'Storage', 'Utilities', 'Retail', 'Restaurant', 'Gym', 'Swimming Pool', 'Mechanical Room', 'Generator Room', 'Water Treatment'],
+  Podium: ['Amenities', 'Parking', 'Retail', 'Office', 'Recreation', 'Swimming Pool', 'Gym', 'Banquet Hall', 'Terrace Garden', 'Mixed'],
+  Ground: ['Lobby', 'Retail', 'Restaurant', 'Banking', 'Office', 'Mixed'],
+  Floors: ['Commercial', 'Residential'],
+  Terrace: ['Amenities', 'Garden', 'Recreation', 'Restaurant', 'Event Space', 'Open Space']
+};
+
+const Step3FloorConfiguration = ({ 
   data, 
   onUpdate, 
   onNext,
   onPrevious,
   onSave
 }) => {
-  const [amenities, setAmenities] = useState(() => ({
-    recreational: {
-      swimmingPool: {
-        enabled: false,
-        type: 'Adults',
-        length: 25,
-        width: 12,
-        depth: 4,
-        features: []
-      },
-      gymnasium: {
-        enabled: false,
-        area: 1500,
-        equipmentBudget: 500000,
-        features: []
-      },
-      clubhouse: {
-        enabled: false,
-        area: 2000,
-        facilities: []
-      },
-      garden: {
-        enabled: false,
-        area: 5000,
-        features: []
-      },
-      playArea: {
-        enabled: false,
-        area: 800,
-        ageGroups: []
-      },
-      sports: {
-        enabled: false,
-        facilities: []
-      }
-    },
-    security: {
-      cctv: {
-        enabled: false,
-        cameras: 50,
-        coverage: '24x7',
-        storage: '30 days'
-      },
-      securityGuards: {
-        enabled: false,
-        shifts: '24x7',
-        count: 6,
-        training: 'Basic'
-      },
-      accessControl: {
-        enabled: false,
-        type: 'Card + Biometric',
-        locations: []
-      },
-      intercom: {
-        enabled: false,
-        type: 'Video',
-        coverage: 'All units'
-      }
-    },
-    utilities: {
-      powerBackup: {
-        enabled: false,
-        capacity: 500,
-        type: 'DG Set',
-        coverage: '100%',
-        fuelType: 'Diesel'
-      },
-      waterSupply: {
-        sources: [],
-        storageCapacity: 100000,
-        treatment: false,
-        recycling: false
-      },
-      sewageManagement: {
-        stp: false,
-        capacity: 50000,
-        treatment: 'Tertiary',
-        reuse: false
-      },
-      wasteManagement: {
-        segregation: false,
-        composting: false,
-        recycling: false,
-        collection: 'Daily'
-      },
-      internet: {
-        enabled: false,
-        provider: 'Fiber',
-        speed: '100 Mbps',
-        coverage: 'All units'
-      }
-    },
-    maintenance: {
-      managementCompany: '',
-      monthlyCharges: 3,
-      sinkingFund: 10,
-      maintenanceScope: [],
-      emergencyFund: 5
-    },
-    parking: {
-      covered: {
-        cars: 0,
-        bikes: 0
-      },
-      open: {
-        cars: 0,
-        bikes: 0
-      },
-      visitor: {
-        cars: 0,
-        bikes: 0
-      },
-      valet: false,
-      evCharging: {
-        enabled: false,
-        stations: 0,
-        type: 'AC'
-      }
-    },
-    ...data.amenities
-  }));
-
+  const [floorConfigurations, setFloorConfigurations] = useState(data.floorConfigurations || {});
+  const [currentTowerIndex, setCurrentTowerIndex] = useState(0);
+  const [currentWingIndex, setCurrentWingIndex] = useState(0);
+  const [expandedFloors, setExpandedFloors] = useState({});
+  const [selectedFloors, setSelectedFloors] = useState(new Set());
+  const [bulkConfigMode, setBulkConfigMode] = useState(false);
+  const [bulkConfig, setBulkConfig] = useState({});
   const [validationResult, setValidationResult] = useState({ isValid: true, errors: {}, warnings: [] });
-  const [expandedSections, setExpandedSections] = useState({
-    recreational: true,
-    security: false,
-    utilities: false,
-    maintenance: false,
-    parking: false
-  });
 
-  useEffect(() => {
-    // Validate amenities configuration
-    const errors = {};
-    const warnings = [];
+  const towers = data.towers || [];
+  const currentTower = towers[currentTowerIndex];
+  const currentWing = currentTower?.wings[currentWingIndex];
 
-    // Check if swimming pool dimensions are reasonable
-    if (amenities.recreational.swimmingPool.enabled) {
-      const poolArea = amenities.recreational.swimmingPool.length * amenities.recreational.swimmingPool.width;
-      if (poolArea < 100) {
-        warnings.push('Swimming pool area seems small for a residential project');
-      }
-    }
-
-    // Check power backup capacity
-    if (amenities.utilities.powerBackup.enabled && amenities.utilities.powerBackup.capacity < 100) {
-      warnings.push('Power backup capacity may be insufficient for the project size');
-    }
-
-    // Check parking ratios
-    const totalUnits = Object.values(data.units || {}).reduce((sum, floorUnits) => sum + floorUnits.length, 0);
-    const totalParkingSpaces = amenities.parking.covered.cars + amenities.parking.open.cars;
+  // Generate individual floors for current wing
+  const generateIndividualFloors = () => {
+    if (!currentWing) return [];
     
-    if (totalUnits > 0 && totalParkingSpaces > 0) {
-      const parkingRatio = totalParkingSpaces / totalUnits;
-      if (parkingRatio < 0.8) {
-        warnings.push(`Parking ratio (${parkingRatio.toFixed(2)}) is below recommended 0.8 spaces per unit`);
-      }
-    }
-
-    setValidationResult({
-      isValid: Object.keys(errors).length === 0,
-      errors,
-      warnings
-    });
-  }, [amenities, data.units]);
-
-  const updateAmenity = (section, subsection, field, value) => {
-    setAmenities(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [subsection]: {
-          ...prev[section][subsection],
-          [field]: value
+    const floors = [];
+    Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
+      if (config.enabled && config.count > 0) {
+        for (let i = 1; i <= config.count; i++) {
+          floors.push({
+            id: `${currentTower.id}-${currentWing.id}-${floorType}-${i}`,
+            type: floorType,
+            number: i,
+            displayName: `${floorType} ${i}`,
+            usages: [],
+            unitsCount: floorType === 'Floors' ? 4 : 0,
+            notes: '',
+            customConfig: {}
+          });
         }
       }
+    });
+    return floors;
+  };
+
+  const individualFloors = generateIndividualFloors();
+
+  const getFloorConfig = (floorId) => {
+    return floorConfigurations[floorId] || {
+      usages: [],
+      unitsCount: 0,
+      notes: '',
+      customConfig: {}
+    };
+  };
+
+  const updateFloorConfig = (floorId, updates) => {
+    setFloorConfigurations(prev => ({
+      ...prev,
+      [floorId]: { ...getFloorConfig(floorId), ...updates }
     }));
   };
 
-  const updateArrayField = (section, subsection, field, value, checked) => {
-    setAmenities(prev => {
-      const currentArray = prev[section][subsection][field] || [];
-      const updatedArray = checked 
-        ? [...currentArray, value]
-        : currentArray.filter(item => item !== value);
+  const toggleFloorSelection = (floorId) => {
+    setSelectedFloors(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(floorId)) {
+        newSet.delete(floorId);
+      } else {
+        newSet.add(floorId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllFloors = () => {
+    setSelectedFloors(new Set(individualFloors.map(floor => floor.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedFloors(new Set());
+  };
+
+  const applyBulkConfiguration = () => {
+    selectedFloors.forEach(floorId => {
+      updateFloorConfig(floorId, bulkConfig);
+    });
+    setBulkConfigMode(false);
+    setBulkConfig({});
+    clearSelection();
+  };
+  const toggleFloorUsage = (floorId, usage) => {
+    const config = getFloorConfig(floorId);
+    const currentUsages = config.usages || [];
+    const updatedUsages = currentUsages.includes(usage)
+      ? currentUsages.filter(u => u !== usage)
+      : [...currentUsages, usage];
+    
+    updateFloorConfig(floorId, { usages: updatedUsages });
+  };
+
+  const cloneFromPreviousWing = () => {
+    if (currentTowerIndex === 0 && currentWingIndex === 0) return;
+    
+    let prevTowerIndex = currentTowerIndex;
+    let prevWingIndex = currentWingIndex - 1;
+    
+    if (prevWingIndex < 0) {
+      prevTowerIndex = currentTowerIndex - 1;
+      if (prevTowerIndex >= 0) {
+        prevWingIndex = towers[prevTowerIndex].wings.length - 1;
+      }
+    }
+    
+    if (prevTowerIndex >= 0 && prevWingIndex >= 0) {
+      const prevTower = towers[prevTowerIndex];
+      const prevWing = prevTower.wings[prevWingIndex];
       
-      return {
-        ...prev,
-        [section]: {
-          ...prev[section],
-          [subsection]: {
-            ...prev[section][subsection],
-            [field]: updatedArray
+      // Clone configurations from previous wing
+      const prevFloors = [];
+      Object.entries(prevWing.floorTypes).forEach(([floorType, config]) => {
+        if (config.enabled && config.count > 0) {
+          for (let i = 1; i <= config.count; i++) {
+            prevFloors.push(`${prevTower.id}-${prevWing.id}-${floorType}-${i}`);
           }
         }
-      };
+      });
+      
+      const clonedConfigs = {};
+      prevFloors.forEach(prevFloorId => {
+        const prevConfig = floorConfigurations[prevFloorId];
+        if (prevConfig) {
+          // Map to current wing floors
+          const currentFloorId = prevFloorId.replace(`${prevTower.id}-${prevWing.id}`, `${currentTower.id}-${currentWing.id}`);
+          clonedConfigs[currentFloorId] = { ...prevConfig };
+        }
+      });
+      
+      setFloorConfigurations(prev => ({
+        ...prev,
+        ...clonedConfigs
+      }));
+    }
+  };
+
+  const toggleFloorExpansion = (floorId) => {
+    setExpandedFloors(prev => ({
+      ...prev,
+      [floorId]: !prev[floorId]
+    }));
+  };
+
+  const hasNextWing = () => {
+    if (!currentTower) return false;
+    return currentWingIndex < currentTower.wings.length - 1;
+  };
+
+  const hasNextTower = () => {
+    return currentTowerIndex < towers.length - 1;
+  };
+
+  const goToNextWing = () => {
+    if (hasNextWing()) {
+      setCurrentWingIndex(currentWingIndex + 1);
+    } else if (hasNextTower()) {
+      setCurrentTowerIndex(currentTowerIndex + 1);
+      setCurrentWingIndex(0);
+    }
+  };
+
+  const goToPrevWing = () => {
+    if (currentWingIndex > 0) {
+      setCurrentWingIndex(currentWingIndex - 1);
+    } else if (currentTowerIndex > 0) {
+      setCurrentTowerIndex(currentTowerIndex - 1);
+      const prevTower = towers[currentTowerIndex - 1];
+      setCurrentWingIndex(prevTower.wings.length - 1);
+    }
+  };
+
+  const isLastWing = () => {
+    return currentTowerIndex === towers.length - 1 && 
+           currentWingIndex === currentTower.wings.length - 1;
+  };
+
+  const getProgressInfo = () => {
+    let totalWings = 0;
+    let currentPosition = 0;
+
+    towers.forEach((tower, tIndex) => {
+      tower.wings.forEach((wing, wIndex) => {
+        if (tIndex === currentTowerIndex && wIndex === currentWingIndex) {
+          currentPosition = totalWings;
+        }
+        totalWings++;
+      });
     });
-  };
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const loadPresetAmenities = (preset) => {
-    const presets = {
-      luxury: {
-        recreational: {
-          swimmingPool: { enabled: true, type: 'Infinity', length: 30, width: 15, depth: 5, features: ['Infinity Edge', 'Underwater Lighting', 'Pool Deck'] },
-          gymnasium: { enabled: true, area: 2500, equipmentBudget: 1000000, features: ['Cardio Zone', 'Weight Training', 'Yoga Studio', 'Steam Room'] },
-          clubhouse: { enabled: true, area: 3000, facilities: ['Banquet Hall', 'Library', 'Business Center', 'Café'] },
-          garden: { enabled: true, area: 8000, features: ['Landscaped Garden', 'Walking Track', 'Meditation Zone', 'Outdoor Seating'] },
-          playArea: { enabled: true, area: 1200, ageGroups: ['Toddlers (2-5)', 'Kids (6-12)'] },
-          sports: { enabled: true, facilities: ['Badminton Court', 'Tennis Court', 'Basketball Court'] }
-        },
-        security: {
-          cctv: { enabled: true, cameras: 100, coverage: '24x7', storage: '60 days' },
-          securityGuards: { enabled: true, shifts: '24x7', count: 12, training: 'Advanced' },
-          accessControl: { enabled: true, type: 'Card + Biometric', locations: ['Main Gate', 'Tower Entrance', 'Amenity Areas'] },
-          intercom: { enabled: true, type: 'Video', coverage: 'All units' }
-        },
-        utilities: {
-          powerBackup: { enabled: true, capacity: 1000, type: 'Both', coverage: '100%', fuelType: 'Diesel' },
-          waterSupply: { sources: ['Bore Well', 'Municipal', 'Rainwater Harvesting'], storageCapacity: 200000, treatment: true, recycling: true },
-          sewageManagement: { stp: true, capacity: 100000, treatment: 'Tertiary', reuse: true },
-          wasteManagement: { segregation: true, composting: true, recycling: true, collection: 'Twice Daily' },
-          internet: { enabled: true, provider: 'Fiber', speed: '1 Gbps', coverage: 'All units' }
-        }
-      },
-      standard: {
-        recreational: {
-          swimmingPool: { enabled: true, type: 'Adults', length: 25, width: 12, depth: 4, features: ['Pool Deck'] },
-          gymnasium: { enabled: true, area: 1500, equipmentBudget: 500000, features: ['Cardio Zone', 'Weight Training'] },
-          clubhouse: { enabled: true, area: 1500, facilities: ['Community Hall', 'Library'] },
-          garden: { enabled: true, area: 3000, features: ['Landscaped Garden', 'Walking Track'] },
-          playArea: { enabled: true, area: 600, ageGroups: ['Kids (6-12)'] },
-          sports: { enabled: false, facilities: [] }
-        },
-        security: {
-          cctv: { enabled: true, cameras: 50, coverage: '24x7', storage: '30 days' },
-          securityGuards: { enabled: true, shifts: '24x7', count: 6, training: 'Basic' },
-          accessControl: { enabled: true, type: 'Card Based', locations: ['Main Gate', 'Tower Entrance'] },
-          intercom: { enabled: true, type: 'Audio', coverage: 'All units' }
-        },
-        utilities: {
-          powerBackup: { enabled: true, capacity: 500, type: 'DG Set', coverage: '100%', fuelType: 'Diesel' },
-          waterSupply: { sources: ['Bore Well', 'Municipal'], storageCapacity: 100000, treatment: false, recycling: false },
-          sewageManagement: { stp: true, capacity: 50000, treatment: 'Secondary', reuse: false },
-          wasteManagement: { segregation: true, composting: false, recycling: false, collection: 'Daily' },
-          internet: { enabled: true, provider: 'Fiber', speed: '100 Mbps', coverage: 'All units' }
-        }
-      },
-      basic: {
-        recreational: {
-          swimmingPool: { enabled: false },
-          gymnasium: { enabled: true, area: 800, equipmentBudget: 200000, features: ['Basic Equipment'] },
-          clubhouse: { enabled: true, area: 800, facilities: ['Community Hall'] },
-          garden: { enabled: true, area: 2000, features: ['Basic Landscaping'] },
-          playArea: { enabled: true, area: 400, ageGroups: ['Kids (6-12)'] },
-          sports: { enabled: false, facilities: [] }
-        },
-        security: {
-          cctv: { enabled: true, cameras: 25, coverage: '12 hours', storage: '15 days' },
-          securityGuards: { enabled: true, shifts: 'Day + Night', count: 4, training: 'Basic' },
-          accessControl: { enabled: false },
-          intercom: { enabled: true, type: 'Audio', coverage: 'All units' }
-        },
-        utilities: {
-          powerBackup: { enabled: true, capacity: 250, type: 'DG Set', coverage: '80%', fuelType: 'Diesel' },
-          waterSupply: { sources: ['Municipal'], storageCapacity: 50000, treatment: false, recycling: false },
-          sewageManagement: { stp: false },
-          wasteManagement: { segregation: false, composting: false, recycling: false, collection: 'Daily' },
-          internet: { enabled: true, provider: 'Broadband', speed: '50 Mbps', coverage: 'All units' }
-        }
-      }
-    };
-
-    setAmenities(prev => ({
-      ...prev,
-      ...presets[preset]
-    }));
-  };
-
-  const calculateMaintenanceCharges = () => {
-    let baseCharge = 2; // ₹2 per sq ft base
-    
-    // Add charges based on amenities
-    if (amenities.recreational.swimmingPool.enabled) baseCharge += 0.5;
-    if (amenities.recreational.gymnasium.enabled) baseCharge += 0.3;
-    if (amenities.recreational.clubhouse.enabled) baseCharge += 0.4;
-    if (amenities.security.securityGuards.enabled) baseCharge += 0.8;
-    if (amenities.utilities.powerBackup.enabled) baseCharge += 0.6;
-    
-    return Math.round(baseCharge * 100) / 100;
+    return { currentPosition: currentPosition + 1, totalWings };
   };
 
   const handleNext = () => {
-    if (validationResult.isValid) {
-      onUpdate({ amenities });
+    if (isLastWing()) {
+      onUpdate({ floorConfigurations });
       onNext();
+    } else {
+      goToNextWing();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentTowerIndex === 0 && currentWingIndex === 0) {
+      onPrevious();
+    } else {
+      goToPrevWing();
     }
   };
 
   const handleSave = () => {
-    onUpdate({ amenities });
-    onSave?.({ amenities });
+    onUpdate({ floorConfigurations });
+    onSave?.({ floorConfigurations });
   };
 
-  const SectionCard = ({ title, icon: Icon, section, children, color = "blue" }) => {
-    const isExpanded = expandedSections[section];
-    const colorClasses = {
-      blue: 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
-      green: 'from-green-50 to-emerald-50 border-green-200 text-green-800',
-      purple: 'from-purple-50 to-pink-50 border-purple-200 text-purple-800',
-      orange: 'from-orange-50 to-yellow-50 border-orange-200 text-orange-800',
-      red: 'from-red-50 to-pink-50 border-red-200 text-red-800'
-    };
-
+  if (!currentTower || !currentWing) {
     return (
-      <div className={`p-6 bg-gradient-to-r ${colorClasses[color]} rounded-xl border`}>
-        <button
-          onClick={() => toggleSection(section)}
-          className="w-full flex items-center justify-between text-left mb-4"
-        >
-          <div className="flex items-center space-x-3">
-            <Icon className="w-6 h-6" />
-            <h4 className="text-lg font-bold">{title}</h4>
-          </div>
-          <div className="text-sm">
-            {isExpanded ? '▼ Collapse' : '▶ Expand'}
-          </div>
-        </button>
-        
-        {isExpanded && (
-          <div className="animate-slide-up">
-            {children}
-          </div>
-        )}
+      <div className="text-center py-12">
+        <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No towers configured</h3>
+        <p className="text-gray-600">Please go back and configure towers and wings first.</p>
+        <Button variant="primary" onClick={onPrevious}>
+          Go Back
+        </Button>
       </div>
     );
-  };
+  }
+
+  const { currentPosition, totalWings } = getProgressInfo();
 
   return (
     <div className="space-y-8 animate-slide-up">
       <Card className="overflow-hidden">
         <Card.Header>
           <div className="flex items-center justify-between">
-            <Card.Title icon={TreePine} gradient>Amenities & Facilities</Card.Title>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={() => loadPresetAmenities('basic')}>
-                Basic Package
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => loadPresetAmenities('standard')}>
-                Standard Package
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => loadPresetAmenities('luxury')}>
-                Luxury Package
+            <Card.Title icon={Layers} gradient>Floor Configuration</Card.Title>
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-gray-600">
+                Wing {currentPosition} of {totalWings}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cloneFromPreviousWing}
+                disabled={currentTowerIndex === 0 && currentWingIndex === 0}
+                icon={Copy}
+              >
+                Clone from Previous Wing
               </Button>
             </div>
           </div>
           <Card.Subtitle>
-            Configure amenities and facilities that will enhance the living experience and add value to your project.
+            Configure each individual floor with specific usage types and unit counts. Multiple usage types can be selected for each floor.
           </Card.Subtitle>
         </Card.Header>
 
         <Card.Content>
+          {/* Current Wing Header */}
+          <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl flex items-center justify-center font-bold text-lg">
+                {String.fromCharCode(65 + currentWingIndex)}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {currentTower.name || currentTower.customName} - {currentWing.name}
+                </h3>
+                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                  <span className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    {currentWing.type} Wing
+                  </span>
+                  <span className="flex items-center">
+                    <Layers className="w-4 h-4 mr-1" />
+                    {individualFloors.length} Individual Floors
+                  </span>
+                  <span className="flex items-center">
+                    <Settings className="w-4 h-4 mr-1" />
+                    {currentWing.lifts} Lifts
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-4">
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${(currentPosition / totalWings) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
           <ValidationSummary
             errors={validationResult.errors}
             warnings={validationResult.warnings}
             className="mb-8"
           />
 
-          <div className="space-y-6">
-            {/* Recreational Amenities */}
-            <SectionCard title="Recreational Amenities" icon={Waves} section="recreational" color="blue">
-              <div className="space-y-6">
-                {/* Swimming Pool */}
-                <div className="p-4 bg-white rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.recreational.swimmingPool.enabled}
-                        onChange={(e) => updateAmenity('recreational', 'swimmingPool', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">Swimming Pool</h5>
-                    </div>
-                  </div>
+          {/* Bulk Configuration Panel */}
+          {individualFloors.length > 1 && (
+            <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+              <h4 className="font-bold text-purple-800 mb-4">🔧 Bulk Floor Configuration</h4>
+              
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <Button
+                    variant={bulkConfigMode ? "primary" : "outline"}
+                    size="sm"
+                    onClick={() => setBulkConfigMode(!bulkConfigMode)}
+                  >
+                    {bulkConfigMode ? 'Exit Bulk Mode' : 'Enable Bulk Mode'}
+                  </Button>
                   
-                  {amenities.recreational.swimmingPool.enabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Select
-                        label="Pool Type"
-                        options={['Adults', 'Kids', 'Infinity', 'Lap Pool', 'Multi-level']}
-                        value={amenities.recreational.swimmingPool.type}
-                        onChange={(e) => updateAmenity('recreational', 'swimmingPool', 'type', e.target.value)}
-                      />
-                      <Input.Number
-                        label="Length (meters)"
-                        value={amenities.recreational.swimmingPool.length}
-                        onChange={(e) => updateAmenity('recreational', 'swimmingPool', 'length', parseInt(e.target.value) || 0)}
-                        min={10}
-                        max={50}
-                      />
-                      <Input.Number
-                        label="Width (meters)"
-                        value={amenities.recreational.swimmingPool.width}
-                        onChange={(e) => updateAmenity('recreational', 'swimmingPool', 'width', parseInt(e.target.value) || 0)}
-                        min={5}
-                        max={25}
-                      />
-                    </div>
+                  {bulkConfigMode && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={selectAllFloors}>
+                        Select All
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={clearSelection}>
+                        Clear Selection
+                      </Button>
+                    </>
                   )}
                 </div>
-
-                {/* Gymnasium */}
-                <div className="p-4 bg-white rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.recreational.gymnasium.enabled}
-                        onChange={(e) => updateAmenity('recreational', 'gymnasium', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">Gymnasium</h5>
-                    </div>
+                
+                {selectedFloors.size > 0 && (
+                  <div className="text-sm text-purple-800 font-medium">
+                    {selectedFloors.size} floor{selectedFloors.size > 1 ? 's' : ''} selected
                   </div>
-                  
-                  {amenities.recreational.gymnasium.enabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input.Number
-                        label="Equipment Budget (₹)"
-                        value={amenities.recreational.gymnasium.equipmentBudget}
-                        onChange={(e) => updateAmenity('recreational', 'gymnasium', 'equipmentBudget', parseInt(e.target.value) || 0)}
-                        min={100000}
-                        max={2000000}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Other recreational amenities */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Clubhouse */}
-                  <div className="p-4 bg-white rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.recreational.clubhouse.enabled}
-                        onChange={(e) => updateAmenity('recreational', 'clubhouse', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">Clubhouse</h5>
-                    </div>
-                    {amenities.recreational.clubhouse.enabled && (
-                      <div className="text-sm text-gray-600">
-                        Clubhouse facilities will be configured
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Garden */}
-                  <div className="p-4 bg-white rounded-lg border border-blue-200">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.recreational.garden.enabled}
-                        onChange={(e) => updateAmenity('recreational', 'garden', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-blue-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">Landscaped Garden</h5>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
-            </SectionCard>
 
-            {/* Security Features */}
-            <SectionCard title="Security & Safety" icon={Shield} section="security" color="red">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* CCTV */}
-                  <div className="p-4 bg-white rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.security.cctv.enabled}
-                        onChange={(e) => updateAmenity('security', 'cctv', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-red-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">CCTV Surveillance</h5>
-                    </div>
-                    {amenities.security.cctv.enabled && (
-                      <div className="space-y-3">
-                        <Input.Number
-                          label="Number of Cameras"
-                          value={amenities.security.cctv.cameras}
-                          onChange={(e) => updateAmenity('security', 'cctv', 'cameras', parseInt(e.target.value) || 0)}
-                          min={10}
-                          max={200}
-                        />
-                        <Select
-                          label="Storage Duration"
-                          options={['15 days', '30 days', '60 days', '90 days']}
-                          value={amenities.security.cctv.storage}
-                          onChange={(e) => updateAmenity('security', 'cctv', 'storage', e.target.value)}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Security Guards */}
-                  <div className="p-4 bg-white rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <input
-                        type="checkbox"
-                        checked={amenities.security.securityGuards.enabled}
-                        onChange={(e) => updateAmenity('security', 'securityGuards', 'enabled', e.target.checked)}
-                        className="w-5 h-5 text-red-600 rounded"
-                      />
-                      <h5 className="font-semibold text-gray-800">Security Guards</h5>
-                    </div>
-                    {amenities.security.securityGuards.enabled && (
-                      <div className="space-y-3">
-                        <Select
-                          label="Shift Pattern"
-                          options={['24x7', 'Day + Night', 'Day Only', 'Night Only']}
-                          value={amenities.security.securityGuards.shifts}
-                          onChange={(e) => updateAmenity('security', 'securityGuards', 'shifts', e.target.value)}
-                        />
-                        <Input.Number
-                          label="Total Guards"
-                          value={amenities.security.securityGuards.count}
-                          onChange={(e) => updateAmenity('security', 'securityGuards', 'count', parseInt(e.target.value) || 0)}
-                          min={2}
-                          max={20}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Utilities */}
-            <SectionCard title="Utilities & Infrastructure" icon={Zap} section="utilities" color="orange">
-              <div className="space-y-6">
-                {/* Power Backup */}
-                <div className="p-4 bg-white rounded-lg border border-orange-200">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <input
-                      type="checkbox"
-                      checked={amenities.utilities.powerBackup.enabled}
-                      onChange={(e) => updateAmenity('utilities', 'powerBackup', 'enabled', e.target.checked)}
-                      className="w-5 h-5 text-orange-600 rounded"
+              {bulkConfigMode && selectedFloors.size > 0 && (
+                <div className="p-4 bg-white rounded-lg border border-purple-200">
+                  <h5 className="font-semibold text-gray-800 mb-4">Apply to Selected Floors</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <Input.Number
+                      label="Units Count"
+                      value={bulkConfig.unitsCount || ''}
+                      onChange={(e) => setBulkConfig(prev => ({ ...prev, unitsCount: parseInt(e.target.value) || 0 }))}
+                      min={0}
+                      max={20}
+                      placeholder="Units per floor"
                     />
-                    <h5 className="font-semibold text-gray-800">Power Backup</h5>
-                  </div>
-                  
-                  {amenities.utilities.powerBackup.enabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Input.Number
-                        label="Capacity (KVA)"
-                        value={amenities.utilities.powerBackup.capacity}
-                        onChange={(e) => updateAmenity('utilities', 'powerBackup', 'capacity', parseInt(e.target.value) || 0)}
-                        min={100}
-                        max={2000}
-                      />
-                      <Select
-                        label="Backup Type"
-                        options={['DG Set', 'UPS', 'Both', 'Solar + Battery']}
-                        value={amenities.utilities.powerBackup.type}
-                        onChange={(e) => updateAmenity('utilities', 'powerBackup', 'type', e.target.value)}
-                      />
-                      <Select
-                        label="Coverage"
-                        options={['100%', '80%', '60%', 'Essential loads only']}
-                        value={amenities.utilities.powerBackup.coverage}
-                        onChange={(e) => updateAmenity('utilities', 'powerBackup', 'coverage', e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Water Supply */}
-                <div className="p-4 bg-white rounded-lg border border-orange-200">
-                  <h5 className="font-semibold text-gray-800 mb-4">💧 Water Supply & Management</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
                     <div>
-                      <label className="form-label">Water Sources</label>
-                      <div className="space-y-2">
-                        {['Municipal', 'Bore Well', 'Rainwater Harvesting', 'Tanker Supply'].map(source => (
-                          <label key={source} className="flex items-center">
+                      <label className="form-label">Usage Types</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {USAGE_OPTIONS[individualFloors[0]?.type]?.slice(0, 6).map(usage => (
+                          <label key={usage} className="flex items-center text-sm">
                             <input
                               type="checkbox"
-                              checked={amenities.utilities.waterSupply.sources.includes(source)}
-                              onChange={(e) => updateArrayField('utilities', 'waterSupply', 'sources', source, e.target.checked)}
-                              className="w-4 h-4 text-orange-600 rounded mr-2"
+                              checked={bulkConfig.usages?.includes(usage) || false}
+                              onChange={(e) => {
+                                const usages = bulkConfig.usages || [];
+                                const updatedUsages = e.target.checked
+                                  ? [...usages, usage]
+                                  : usages.filter(u => u !== usage);
+                                setBulkConfig(prev => ({ ...prev, usages: updatedUsages }));
+                              }}
+                              className="w-3 h-3 text-purple-600 rounded mr-2"
                             />
-                            <span className="text-sm text-gray-700">{source}</span>
+                            {usage}
                           </label>
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <Input.Number
-                        label="Storage Capacity (Liters)"
-                        value={amenities.utilities.waterSupply.storageCapacity}
-                        onChange={(e) => updateAmenity('utilities', 'waterSupply', 'storageCapacity', parseInt(e.target.value) || 0)}
-                        min={10000}
-                        max={500000}
-                      />
-                      <div className="mt-3 space-y-2">
-                        <label className="flex items-center">
+                  </div>
+                  
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={applyBulkConfiguration}
+                    disabled={Object.keys(bulkConfig).length === 0}
+                  >
+                    Apply Configuration to {selectedFloors.size} Floor{selectedFloors.size > 1 ? 's' : ''}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Individual Floors Configuration */}
+          <div className="space-y-6">
+            {individualFloors.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <Layers className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No floors configured</h4>
+                <p className="text-gray-600">Go back to tower configuration to enable floor types</p>
+              </div>
+            ) : (
+              individualFloors.map((floor) => {
+                const config = getFloorConfig(floor.id);
+                const isExpanded = expandedFloors[floor.id];
+                const availableUsages = USAGE_OPTIONS[floor.type] || [];
+
+                return (
+                  <div key={floor.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                    {/* Floor Header */}
+                    <button
+                      onClick={() => toggleFloorExpansion(floor.id)}
+                      className={`
+                        w-full px-6 py-4 flex items-center justify-between text-left transition-all duration-200
+                        ${selectedFloors.has(floor.id) && bulkConfigMode
+                          ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-l-4 border-purple-500'
+                          : 'bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center space-x-4">
+                        {bulkConfigMode && (
                           <input
                             type="checkbox"
-                            checked={amenities.utilities.waterSupply.treatment}
-                            onChange={(e) => updateAmenity('utilities', 'waterSupply', 'treatment', e.target.checked)}
-                            className="w-4 h-4 text-orange-600 rounded mr-2"
+                            checked={selectedFloors.has(floor.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleFloorSelection(floor.id);
+                            }}
+                            className="w-5 h-5 text-purple-600 rounded"
                           />
-                          <span className="text-sm text-gray-700">Water Treatment Plant</span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={amenities.utilities.waterSupply.recycling}
-                            onChange={(e) => updateAmenity('utilities', 'waterSupply', 'recycling', e.target.checked)}
-                            className="w-4 h-4 text-orange-600 rounded mr-2"
+                        )}
+                        <div className={`
+                          w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white text-sm
+                          ${floor.type === 'Basement' ? 'bg-gradient-to-r from-gray-600 to-gray-800' :
+                            floor.type === 'Ground' ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
+                            floor.type === 'Podium' ? 'bg-gradient-to-r from-purple-500 to-pink-600' :
+                            floor.type === 'Floors' ? 'bg-gradient-to-r from-blue-500 to-cyan-600' :
+                            'bg-gradient-to-r from-orange-500 to-red-600'}
+                        `}>
+                          {floor.type === 'Basement' ? 'B' + floor.number :
+                           floor.type === 'Ground' ? 'G' :
+                           floor.type === 'Podium' ? 'P' + floor.number :
+                           floor.type === 'Terrace' ? 'T' + floor.number :
+                           floor.number}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{floor.displayName}</h4>
+                          <p className="text-sm text-gray-600">
+                            {config.usages?.length > 0 ? config.usages.join(', ') : 'No usage selected'} 
+                            {config.unitsCount > 0 && ` • ${config.unitsCount} units`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className={`
+                          w-3 h-3 rounded-full
+                          ${config.usages?.length > 0 ? 'bg-green-500' : 'bg-gray-300'}
+                        `}></div>
+                        {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
+                      </div>
+                    </button>
+
+                    {/* Floor Configuration */}
+                    {isExpanded && (
+                      <div className="p-6 space-y-6 animate-slide-up">
+                        {/* Usage Selection */}
+                        <div>
+                          <label className="form-label">Floor Usage (Select Multiple)</label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {availableUsages.map(usage => (
+                              <label key={usage} className={`
+                                flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200
+                                ${config.usages?.includes(usage) 
+                                  ? 'border-blue-500 bg-blue-50 text-blue-800' 
+                                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                                }
+                              `}>
+                                <input
+                                  type="checkbox"
+                                  checked={config.usages?.includes(usage) || false}
+                                  onChange={() => toggleFloorUsage(floor.id, usage)}
+                                  className="w-4 h-4 text-blue-600 rounded mr-3"
+                                />
+                                <span className="text-sm font-medium">{usage}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Units Configuration */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <Input.Number
+                            label="Number of Units on this Floor"
+                            value={config.unitsCount || 0}
+                            onChange={(e) => updateFloorConfig(floor.id, { unitsCount: parseInt(e.target.value) || 0 })}
+                            min={0}
+                            max={20}
+                            helperText="Total units/spaces on this specific floor"
                           />
-                          <span className="text-sm text-gray-700">Water Recycling System</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Sewage Management */}
-                <div className="p-4 bg-white rounded-lg border border-orange-200">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <input
-                      type="checkbox"
-                      checked={amenities.utilities.sewageManagement.stp}
-                      onChange={(e) => updateAmenity('utilities', 'sewageManagement', 'stp', e.target.checked)}
-                      className="w-5 h-5 text-orange-600 rounded"
-                    />
-                    <h5 className="font-semibold text-gray-800">Sewage Treatment Plant (STP)</h5>
-                  </div>
-                  
-                  {amenities.utilities.sewageManagement.stp && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Input.Number
-                        label="Capacity (Liters/day)"
-                        value={amenities.utilities.sewageManagement.capacity}
-                        onChange={(e) => updateAmenity('utilities', 'sewageManagement', 'capacity', parseInt(e.target.value) || 0)}
-                        min={10000}
-                        max={200000}
-                      />
-                      <Select
-                        label="Treatment Level"
-                        options={['Primary', 'Secondary', 'Tertiary']}
-                        value={amenities.utilities.sewageManagement.treatment}
-                        onChange={(e) => updateAmenity('utilities', 'sewageManagement', 'treatment', e.target.value)}
-                      />
-                      <div className="flex items-center pt-6">
-                        <input
-                          type="checkbox"
-                          checked={amenities.utilities.sewageManagement.reuse}
-                          onChange={(e) => updateAmenity('utilities', 'sewageManagement', 'reuse', e.target.checked)}
-                          className="w-4 h-4 text-orange-600 rounded mr-2"
+                          {/* Custom Configuration based on usage */}
+                          {config.usages?.includes('Parking') && (
+                            <Input.Number
+                              label="Parking Spaces"
+                              value={config.customConfig?.parkingSpaces || 0}
+                              onChange={(e) => updateFloorConfig(floor.id, { 
+                                customConfig: { 
+                                  ...config.customConfig, 
+                                  parkingSpaces: parseInt(e.target.value) || 0 
+                                }
+                              })}
+                              min={0}
+                              max={200}
+                              helperText="Number of parking spaces"
+                            />
+                          )}
+
+                          {config.usages?.includes('Storage') && (
+                            <Input.Number
+                              label="Storage Area (sq ft)"
+                              value={config.customConfig?.storageArea || 0}
+                              onChange={(e) => updateFloorConfig(floor.id, { 
+                                customConfig: { 
+                                  ...config.customConfig, 
+                                  storageArea: parseInt(e.target.value) || 0 
+                                }
+                              })}
+                              min={0}
+                              helperText="Total storage area"
+                            />
+                          )}
+
+                          {config.usages?.includes('Retail') && (
+                            <Input.Number
+                              label="Retail Shops"
+                              value={config.customConfig?.retailShops || 0}
+                              onChange={(e) => updateFloorConfig(floor.id, { 
+                                customConfig: { 
+                                  ...config.customConfig, 
+                                  retailShops: parseInt(e.target.value) || 0 
+                                }
+                              })}
+                              min={0}
+                              helperText="Number of retail spaces"
+                            />
+                          )}
+
+                          {config.usages?.includes('Office') && (
+                            <Input.Number
+                              label="Office Spaces"
+                              value={config.customConfig?.officeSpaces || 0}
+                              onChange={(e) => updateFloorConfig(floor.id, { 
+                                customConfig: { 
+                                  ...config.customConfig, 
+                                  officeSpaces: parseInt(e.target.value) || 0 
+                                }
+                              })}
+                              min={0}
+                              helperText="Number of office units"
+                            />
+                          )}
+                        </div>
+
+                        {/* Additional Configuration */}
+                        {config.usages?.includes('Amenities') && (
+                          <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                            <h5 className="font-semibold text-purple-800 mb-3">Amenity Features</h5>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {['Swimming Pool', 'Gym', 'Clubhouse', 'Library', 'Game Room', 'Spa', 'Café', 'Business Center'].map(feature => (
+                                <label key={feature} className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={config.customConfig?.amenityFeatures?.includes(feature) || false}
+                                    onChange={(e) => {
+                                      const features = config.customConfig?.amenityFeatures || [];
+                                      const updatedFeatures = e.target.checked 
+                                        ? [...features, feature]
+                                        : features.filter(f => f !== feature);
+                                      updateFloorConfig(floor.id, { 
+                                        customConfig: { 
+                                          ...config.customConfig, 
+                                          amenityFeatures: updatedFeatures 
+                                        }
+                                      });
+                                    }}
+                                    className="w-4 h-4 text-purple-600 rounded mr-2"
+                                  />
+                                  <span className="text-sm">{feature}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Floor Notes */}
+                        <Input.TextArea
+                          label="Floor Notes"
+                          value={config.notes || ''}
+                          onChange={(e) => updateFloorConfig(floor.id, { notes: e.target.value })}
+                          placeholder="Special requirements, notes, or specifications for this floor"
+                          rows={2}
                         />
-                        <label className="text-sm text-gray-700">Treated Water Reuse</label>
+
+                        {/* Floor Summary */}
+                        <div className="p-4 bg-gradient-to-r from-blue-100 to-green-100 rounded-lg border border-blue-200">
+                          <h5 className="font-semibold text-gray-800 mb-2">📊 {floor.displayName} Summary</h5>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-blue-800">Usage Types:</span>
+                              <p className="text-gray-700">{config.usages?.length || 0} selected</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-green-800">Units:</span>
+                              <p className="text-gray-700">{config.unitsCount || 0} units</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-purple-800">Parking:</span>
+                              <p className="text-gray-700">{config.customConfig?.parkingSpaces || 0} spaces</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-orange-800">Status:</span>
+                              <p className="text-gray-700">{config.usages?.length > 0 ? 'Configured' : 'Pending'}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Parking */}
-            <SectionCard title="Parking & Vehicle Management" icon={Car} section="parking" color="purple">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Covered Parking */}
-                  <div className="p-4 bg-white rounded-lg border border-purple-200">
-                    <h5 className="font-semibold text-gray-800 mb-3">🏠 Covered Parking</h5>
-                    <div className="space-y-3">
-                      <Input.Number
-                        label="Car Spaces"
-                        value={amenities.parking.covered.cars}
-                        onChange={(e) => updateAmenity('parking', 'covered', 'cars', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={1000}
-                      />
-                      <Input.Number
-                        label="Bike Spaces"
-                        value={amenities.parking.covered.bikes}
-                        onChange={(e) => updateAmenity('parking', 'covered', 'bikes', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={2000}
-                      />
-                    </div>
+                    )}
                   </div>
-
-                  {/* Open Parking */}
-                  <div className="p-4 bg-white rounded-lg border border-purple-200">
-                    <h5 className="font-semibold text-gray-800 mb-3">🌤️ Open Parking</h5>
-                    <div className="space-y-3">
-                      <Input.Number
-                        label="Car Spaces"
-                        value={amenities.parking.open.cars}
-                        onChange={(e) => updateAmenity('parking', 'open', 'cars', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={500}
-                      />
-                      <Input.Number
-                        label="Bike Spaces"
-                        value={amenities.parking.open.bikes}
-                        onChange={(e) => updateAmenity('parking', 'open', 'bikes', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={1000}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Visitor Parking */}
-                  <div className="p-4 bg-white rounded-lg border border-purple-200">
-                    <h5 className="font-semibold text-gray-800 mb-3">👥 Visitor Parking</h5>
-                    <div className="space-y-3">
-                      <Input.Number
-                        label="Car Spaces"
-                        value={amenities.parking.visitor.cars}
-                        onChange={(e) => updateAmenity('parking', 'visitor', 'cars', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={100}
-                      />
-                      <Input.Number
-                        label="Bike Spaces"
-                        value={amenities.parking.visitor.bikes}
-                        onChange={(e) => updateAmenity('parking', 'visitor', 'bikes', parseInt(e.target.value) || 0)}
-                        min={0}
-                        max={200}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* EV Charging */}
-                <div className="p-4 bg-white rounded-lg border border-purple-200">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <input
-                      type="checkbox"
-                      checked={amenities.parking.evCharging.enabled}
-                      onChange={(e) => updateAmenity('parking', 'evCharging', 'enabled', e.target.checked)}
-                      className="w-5 h-5 text-purple-600 rounded"
-                    />
-                    <h5 className="font-semibold text-gray-800">EV Charging Stations</h5>
-                  </div>
-                  
-                  {amenities.parking.evCharging.enabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input.Number
-                        label="Number of Stations"
-                        value={amenities.parking.evCharging.stations}
-                        onChange={(e) => updateAmenity('parking', 'evCharging', 'stations', parseInt(e.target.value) || 0)}
-                        min={1}
-                        max={50}
-                      />
-                      <Select
-                        label="Charging Type"
-                        options={['AC (Slow)', 'DC (Fast)', 'Both']}
-                        value={amenities.parking.evCharging.type}
-                        onChange={(e) => updateAmenity('parking', 'evCharging', 'type', e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Maintenance */}
-            <SectionCard title="Maintenance & Management" icon={Settings} section="maintenance" color="green">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input
-                    label="Management Company"
-                    value={amenities.maintenance.managementCompany}
-                    onChange={(e) => updateAmenity('maintenance', 'managementCompany', '', e.target.value)}
-                    placeholder="Property management company name"
-                  />
-                  
-                  <div>
-                    <Input.Number
-                      label="Monthly Charges (₹ per sq ft)"
-                      value={amenities.maintenance.monthlyCharges}
-                      onChange={(e) => updateAmenity('maintenance', 'monthlyCharges', '', parseFloat(e.target.value) || 0)}
-                      min={1}
-                      max={10}
-                      step={0.1}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Suggested: ₹{calculateMaintenanceCharges()} per sq ft based on selected amenities
-                    </p>
-                  </div>
-                  
-                  <Input.Number
-                    label="Sinking Fund (%)"
-                    value={amenities.maintenance.sinkingFund}
-                    onChange={(e) => updateAmenity('maintenance', 'sinkingFund', '', parseInt(e.target.value) || 0)}
-                    min={5}
-                    max={25}
-                    helperText="Percentage of monthly charges"
-                  />
-                  
-                  <Input.Number
-                    label="Emergency Fund (%)"
-                    value={amenities.maintenance.emergencyFund}
-                    onChange={(e) => updateAmenity('maintenance', 'emergencyFund', '', parseInt(e.target.value) || 0)}
-                    min={2}
-                    max={15}
-                    helperText="Percentage of monthly charges"
-                  />
-                </div>
-
-                <div>
-                  <label className="form-label">Maintenance Scope</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {[
-                      'Common Area Cleaning', 'Garden Maintenance', 'Security Services',
-                      'Elevator Maintenance', 'Generator Maintenance', 'Swimming Pool Maintenance',
-                      'Gym Equipment Maintenance', 'CCTV Maintenance', 'Plumbing Services',
-                      'Electrical Services', 'Pest Control', 'Waste Management'
-                    ].map(scope => (
-                      <label key={scope} className="flex items-center p-2 rounded border border-green-200 hover:bg-green-50">
-                        <input
-                          type="checkbox"
-                          checked={amenities.maintenance.maintenanceScope.includes(scope)}
-                          onChange={(e) => updateArrayField('maintenance', 'maintenanceScope', '', scope, e.target.checked)}
-                          className="w-4 h-4 text-green-600 rounded mr-2"
-                        />
-                        <span className="text-sm">{scope}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
+                );
+              })
+            )}
           </div>
 
-          {/* Amenities Summary */}
+          {/* Wing Summary */}
           <div className="mt-10 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
-            <h4 className="text-xl font-bold mb-4">🎯 Amenities Summary</h4>
+            <h4 className="text-xl font-bold mb-4">📊 {currentWing.name} Configuration Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-blue-300">
-                  {Object.values(amenities.recreational).filter(amenity => amenity.enabled).length}
-                </div>
-                <div className="text-sm text-gray-300">Recreational Amenities</div>
+                <div className="text-3xl font-bold text-blue-300">{individualFloors.length}</div>
+                <div className="text-sm text-gray-300">Total Floors</div>
               </div>
               
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-300">
-                  {Object.values(amenities.security).filter(feature => feature.enabled).length}
+                  {individualFloors.reduce((sum, floor) => {
+                    const config = getFloorConfig(floor.id);
+                    return sum + (config.unitsCount || 0);
+                  }, 0)}
                 </div>
-                <div className="text-sm text-gray-300">Security Features</div>
+                <div className="text-sm text-gray-300">Total Units</div>
               </div>
               
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-300">
-                  {amenities.parking.covered.cars + amenities.parking.open.cars + amenities.parking.visitor.cars}
+                  {individualFloors.filter(floor => {
+                    const config = getFloorConfig(floor.id);
+                    return config.usages?.length > 0;
+                  }).length}
                 </div>
-                <div className="text-sm text-gray-300">Total Car Parking</div>
+                <div className="text-sm text-gray-300">Configured Floors</div>
               </div>
               
               <div className="text-center">
                 <div className="text-3xl font-bold text-pink-300">
-                  ₹{amenities.maintenance.monthlyCharges}
+                  {individualFloors.reduce((sum, floor) => {
+                    const config = getFloorConfig(floor.id);
+                    return sum + (config.customConfig?.parkingSpaces || 0);
+                  }, 0)}
                 </div>
-                <div className="text-sm text-gray-300">Monthly Charges (per sq ft)</div>
+                <div className="text-sm text-gray-300">Parking Spaces</div>
               </div>
             </div>
 
-            {/* Cost Breakdown */}
-            <div className="mt-6 pt-6 border-t border-gray-700">
-              <h5 className="font-bold mb-4">💰 Estimated Monthly Costs (for 1000 sq ft unit)</h5>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="bg-white/10 p-3 rounded-lg">
-                  <p className="font-semibold text-yellow-300">Maintenance</p>
-                  <p className="text-xl font-bold">₹{(amenities.maintenance.monthlyCharges * 1000).toLocaleString()}</p>
-                </div>
-                <div className="bg-white/10 p-3 rounded-lg">
-                  <p className="font-semibold text-blue-300">Sinking Fund</p>
-                  <p className="text-xl font-bold">₹{Math.round(amenities.maintenance.monthlyCharges * 1000 * amenities.maintenance.sinkingFund / 100).toLocaleString()}</p>
-                </div>
-                <div className="bg-white/10 p-3 rounded-lg">
-                  <p className="font-semibold text-purple-300">Total Monthly</p>
-                  <p className="text-xl font-bold">₹{Math.round(amenities.maintenance.monthlyCharges * 1000 * (1 + amenities.maintenance.sinkingFund / 100 + amenities.maintenance.emergencyFund / 100)).toLocaleString()}</p>
-                </div>
-              </div>
+            {/* Navigation Info */}
+            <div className="mt-6 pt-6 border-t border-gray-700 text-center">
+              <p className="text-gray-300">
+                {isLastWing() ? (
+                  <span>✅ Ready to proceed to unit configuration</span>
+                ) : (
+                  <span>
+                    Next: {hasNextWing() 
+                      ? `${currentWing.name} → ${currentTower.wings[currentWingIndex + 1].name}` 
+                      : `${currentTower.name || currentTower.customName} → ${towers[currentTowerIndex + 1].name || towers[currentTowerIndex + 1].customName}`
+                    }
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </Card.Content>
 
         <StepNavigation
-          onPrevious={onPrevious}
+          onPrevious={handlePrevious}
           onNext={handleNext}
           onSave={handleSave}
           isValid={validationResult.isValid}
-          nextLabel="Next: Review & Finalize"
-          previousLabel="Back: Unit Configuration"
+          nextLabel={isLastWing() ? "Next: Unit Configuration" : "Next Wing"}
+          previousLabel={currentTowerIndex === 0 && currentWingIndex === 0 ? "Back: Tower Declaration" : "Previous Wing"}
         />
       </Card>
     </div>
   );
 };
 
-export default Step5Amenities;
+export default Step3FloorConfiguration;
