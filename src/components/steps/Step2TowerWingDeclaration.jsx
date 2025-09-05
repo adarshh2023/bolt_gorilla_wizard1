@@ -25,6 +25,7 @@ const Step2TowerWingDeclaration = ({
 }) => {
   const [towers, setTowers] = useState(data.towers || []);
   const [errors, setErrors] = useState({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     // Initialize with at least one tower if empty
@@ -138,11 +139,37 @@ const Step2TowerWingDeclaration = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const generateProjectSequence = () => {
+    const sequence = [];
+    towers.forEach((tower, towerIndex) => {
+      const towerName = tower.name || tower.customName || `Tower ${towerIndex + 1}`;
+      tower.wings.forEach((wing, wingIndex) => {
+        const wingData = {
+          tower: towerName,
+          wing: wing.name,
+          type: wing.type,
+          floors: Object.entries(wing.floorTypes)
+            .filter(([_, config]) => config.enabled && config.count > 0)
+            .map(([type, config]) => `${config.count} ${type}`)
+            .join(', '),
+          lifts: wing.lifts
+        };
+        sequence.push(wingData);
+      });
+    });
+    return sequence;
+  };
+
   const handleNext = () => {
     if (validateStep()) {
-      onUpdate({ towers });
-      onNext();
+      setShowConfirmation(true);
     }
+  };
+
+  const confirmAndProceed = () => {
+    onUpdate({ towers });
+    setShowConfirmation(false);
+    onNext();
   };
 
   const handleSave = () => {
@@ -167,6 +194,8 @@ const Step2TowerWingDeclaration = ({
     });
     return total;
   };
+
+  const projectSequence = generateProjectSequence();
 
   return (
     <div className="space-y-8 animate-slide-up">
@@ -463,6 +492,73 @@ const Step2TowerWingDeclaration = ({
           previousLabel="Back: Project Overview"
         />
       </Card>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">🏗️ Confirm Project Structure</h3>
+                <p className="text-gray-600 mt-1">Review the sequence of towers and wings you've configured</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">📋 Configuration Sequence</h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  This is the order in which you'll configure floors and units in the next steps:
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {projectSequence.map((item, index) => (
+                  <div key={index} className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm mr-4">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-800">
+                        {item.tower} - {item.wing}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {item.type} • {item.floors} • {item.lifts} lifts
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                <h5 className="font-semibold text-yellow-800 mb-2">⚠️ Important Note</h5>
+                <p className="text-sm text-yellow-700">
+                  You'll configure each wing one by one in the next steps. Make sure this sequence looks correct before proceeding.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <Button
+                variant="secondary"
+                onClick={() => setShowConfirmation(false)}
+              >
+                ← Go Back to Edit
+              </Button>
+              
+              <Button
+                variant="primary"
+                onClick={confirmAndProceed}
+              >
+                ✓ Confirm & Proceed to Floor Configuration
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

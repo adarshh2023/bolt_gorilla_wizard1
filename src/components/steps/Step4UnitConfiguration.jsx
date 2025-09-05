@@ -19,7 +19,8 @@ const PREDEFINED_TEMPLATES = {
     attachedWashrooms: 1,
     commonWashrooms: 0,
     carpetArea: 450,
-    builtUpArea: 600
+    builtUpArea: 600,
+    templateColor: 'bg-blue-100 border-blue-300 text-blue-800'
   },
   'Standard 2BHK': {
     name: 'Standard 2BHK',
@@ -28,7 +29,8 @@ const PREDEFINED_TEMPLATES = {
     attachedWashrooms: 2,
     commonWashrooms: 1,
     carpetArea: 750,
-    builtUpArea: 950
+    builtUpArea: 950,
+    templateColor: 'bg-green-100 border-green-300 text-green-800'
   },
   'Standard 3BHK': {
     name: 'Standard 3BHK',
@@ -37,7 +39,8 @@ const PREDEFINED_TEMPLATES = {
     attachedWashrooms: 3,
     commonWashrooms: 1,
     carpetArea: 1100,
-    builtUpArea: 1400
+    builtUpArea: 1400,
+    templateColor: 'bg-purple-100 border-purple-300 text-purple-800'
   },
   'Standard Office': {
     name: 'Standard Office',
@@ -49,7 +52,8 @@ const PREDEFINED_TEMPLATES = {
     monthlyRent: 45000,
     parkingSpaces: 2,
     carpetArea: 800,
-    builtUpArea: 1000
+    builtUpArea: 1000,
+    templateColor: 'bg-orange-100 border-orange-300 text-orange-800'
   }
 };
 
@@ -62,19 +66,58 @@ const Step4UnitConfiguration = ({
 }) => {
   const [units, setUnits] = useState(data.units || {});
   const [selectedUnits, setSelectedUnits] = useState([]);
-  const [currentTowerIndex, setCurrentTowerIndex] = useState(0);
-  const [currentWingIndex, setCurrentWingIndex] = useState(0);
+  const [selectedTowerWing, setSelectedTowerWing] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [customTemplates, setCustomTemplates] = useState(data.customTemplates || {});
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
   const [validationResult, setValidationResult] = useState({ isValid: true, errors: {}, warnings: [] });
 
   const towers = data.towers || [];
-  const currentTower = towers[currentTowerIndex];
-  const currentWing = currentTower?.wings[currentWingIndex];
+  
+  // Generate tower-wing options for dropdown
+  const getTowerWingOptions = () => {
+    const options = [];
+    towers.forEach((tower, towerIndex) => {
+      if (tower.wings && Array.isArray(tower.wings)) {
+        tower.wings.forEach((wing, wingIndex) => {
+          options.push({
+            value: `${tower.id}-${wing.id}`,
+            label: `${tower.name || tower.customName} - ${wing.name}`,
+            tower,
+            wing,
+            towerIndex,
+            wingIndex
+          });
+        });
+      }
+    });
+    return options;
+  };
+
+  const towerWingOptions = getTowerWingOptions();
+  
+  // Set default selection if not set
+  useEffect(() => {
+    if (!selectedTowerWing && towerWingOptions.length > 0) {
+      setSelectedTowerWing(towerWingOptions[0].value);
+    }
+  }, [selectedTowerWing, towerWingOptions]);
+
+  const getCurrentTowerWing = () => {
+    return towerWingOptions.find(option => option.value === selectedTowerWing);
+  };
+
+  const currentTowerWing = getCurrentTowerWing();
+  const currentTower = currentTowerWing?.tower;
+  const currentWing = currentTowerWing?.wing;
+
+  // Calculate current position for progress bar
+  const currentPosition = currentTowerWing ? 
+    towerWingOptions.findIndex(option => option.value === selectedTowerWing) + 1 : 0;
+  const totalWings = towerWingOptions.length;
 
   // Generate flat number based on numbering type
-  const generateFlatNumber = (floorInfo, unitIndex, wingLetter) => {
+  const generateFlatNumber = (floorInfo, unitIndex, wingLetter, towerIndex) => {
     const numberingType = data.flatNumberingType || 'wing-floor-unit';
     const floorNumber = floorInfo.number.toString().padStart(2, '0');
     const unitNumber = (unitIndex + 1).toString().padStart(2, '0');
@@ -83,7 +126,7 @@ const Step4UnitConfiguration = ({
       case 'wing-floor-unit':
         return `${wingLetter}-${floorNumber}${unitNumber}`;
       case 'tower-wing-floor-unit':
-        return `T${currentTowerIndex + 1}${wingLetter}${floorNumber}${unitNumber}`;
+        return `T${towerIndex + 1}${wingLetter}${floorNumber}${unitNumber}`;
       case 'sequential':
         return `${floorNumber}${unitNumber}`;
       default:
@@ -93,7 +136,7 @@ const Step4UnitConfiguration = ({
 
   // Get all units for current wing across all floors
   const getAllWingUnits = () => {
-    if (!currentWing) return [];
+    if (!currentWing || !currentWing.floorTypes) return [];
     
     const allUnits = [];
     Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
@@ -121,16 +164,31 @@ const Step4UnitConfiguration = ({
 
   const wingUnits = getAllWingUnits();
 
+  // Helper functions for navigation
+  const isLastWing = () => {
+    return currentPosition === totalWings;
+  };
+
+  const hasNextWing = () => {
+    if (!currentTowerWing) return false;
+    const currentTowerIndex = currentTowerWing.towerIndex;
+    const currentWingIndex = currentTowerWing.wingIndex;
+    const currentTowerWings = towers[currentTowerIndex]?.wings || [];
+    
+    return currentWingIndex < currentTowerWings.length - 1;
+  };
+
   const addUnitsToFloor = (floorId, count = 1) => {
     const currentUnits = units[floorId] || [];
     const wingLetter = currentWing?.name.charAt(currentWing.name.length - 1) || 'A';
     const floorInfo = { number: parseInt(floorId.split('-').pop()) };
+    const towerIndex = currentTowerWing?.towerIndex || 0;
     const newUnits = [];
     
     for (let i = 0; i < count; i++) {
       const unitIndex = currentUnits.length + i;
       newUnits.push({
-        id: generateFlatNumber(floorInfo, unitIndex, wingLetter),
+        id: generateFlatNumber(floorInfo, unitIndex, wingLetter, towerIndex),
         type: '',
         templateName: '',
         status: 'Available',
@@ -190,9 +248,27 @@ const Step4UnitConfiguration = ({
 
   const saveCustomTemplate = (templateData) => {
     const templateName = templateData.name || `Custom Template ${Object.keys(customTemplates).length + 1}`;
+    
+    // Generate a unique color for this template
+    const colors = [
+      'bg-blue-100 border-blue-300 text-blue-800',
+      'bg-green-100 border-green-300 text-green-800',
+      'bg-purple-100 border-purple-300 text-purple-800',
+      'bg-orange-100 border-orange-300 text-orange-800',
+      'bg-pink-100 border-pink-300 text-pink-800',
+      'bg-indigo-100 border-indigo-300 text-indigo-800',
+      'bg-yellow-100 border-yellow-300 text-yellow-800',
+      'bg-red-100 border-red-300 text-red-800',
+      'bg-cyan-100 border-cyan-300 text-cyan-800',
+      'bg-emerald-100 border-emerald-300 text-emerald-800'
+    ];
+    
+    const existingTemplates = Object.keys(customTemplates).length + Object.keys(PREDEFINED_TEMPLATES).length;
+    const templateColor = colors[existingTemplates % colors.length];
+    
     setCustomTemplates(prev => ({
       ...prev,
-      [templateName]: templateData
+      [templateName]: { ...templateData, templateColor }
     }));
   };
 
@@ -219,116 +295,13 @@ const Step4UnitConfiguration = ({
     setSelectedUnits([]);
   };
 
-  const copyFromPreviousWing = () => {
-    let prevTowerIndex = currentTowerIndex;
-    let prevWingIndex = currentWingIndex - 1;
-    
-    if (prevWingIndex < 0) {
-      prevTowerIndex = currentTowerIndex - 1;
-      if (prevTowerIndex >= 0) {
-        prevWingIndex = towers[prevTowerIndex].wings.length - 1;
-      }
-    }
-    
-    if (prevTowerIndex >= 0 && prevWingIndex >= 0) {
-      const prevTower = towers[prevTowerIndex];
-      const prevWing = prevTower.wings[prevWingIndex];
-      
-      // Copy units from previous wing
-      const copiedUnits = {};
-      Object.entries(prevWing.floorTypes).forEach(([floorType, config]) => {
-        if (config.enabled && config.count > 0) {
-          for (let i = 1; i <= config.count; i++) {
-            const prevFloorId = `${prevTower.id}-${prevWing.id}-${floorType}-${i}`;
-            const currentFloorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
-            const prevFloorUnits = units[prevFloorId] || [];
-            
-            if (prevFloorUnits.length > 0) {
-              const wingLetter = currentWing?.name.charAt(currentWing.name.length - 1) || 'A';
-              const floorInfo = { number: i };
-              
-              copiedUnits[currentFloorId] = prevFloorUnits.map((unit, unitIndex) => ({
-                ...unit,
-                id: generateFlatNumber(floorInfo, unitIndex, wingLetter)
-              }));
-            }
-          }
-        }
-      });
-      
-      setUnits(prev => ({
-        ...prev,
-        ...copiedUnits
-      }));
-    }
-  };
-
-  const hasNextWing = () => {
-    if (!currentTower) return false;
-    return currentWingIndex < currentTower.wings.length - 1;
-  };
-
-  const hasNextTower = () => {
-    return currentTowerIndex < towers.length - 1;
-  };
-
-  const goToNextWing = () => {
-    if (hasNextWing()) {
-      setCurrentWingIndex(currentWingIndex + 1);
-    } else if (hasNextTower()) {
-      setCurrentTowerIndex(currentTowerIndex + 1);
-      setCurrentWingIndex(0);
-    }
-    setSelectedUnits([]);
-  };
-
-  const goToPrevWing = () => {
-    if (currentWingIndex > 0) {
-      setCurrentWingIndex(currentWingIndex - 1);
-    } else if (currentTowerIndex > 0) {
-      setCurrentTowerIndex(currentTowerIndex - 1);
-      const prevTower = towers[currentTowerIndex - 1];
-      setCurrentWingIndex(prevTower.wings.length - 1);
-    }
-    setSelectedUnits([]);
-  };
-
-  const isLastWing = () => {
-    return currentTowerIndex === towers.length - 1 && 
-           currentWingIndex === currentTower.wings.length - 1;
-  };
-
-  const getProgressInfo = () => {
-    let totalWings = 0;
-    let currentPosition = 0;
-
-    towers.forEach((tower, tIndex) => {
-      tower.wings.forEach((wing, wIndex) => {
-        if (tIndex === currentTowerIndex && wIndex === currentWingIndex) {
-          currentPosition = totalWings;
-        }
-        totalWings++;
-      });
-    });
-
-    return { currentPosition: currentPosition + 1, totalWings };
-  };
-
   const handleNext = () => {
-    if (isLastWing()) {
-      onUpdate({ units, customTemplates });
-      onNext();
-    } else {
-      goToNextWing();
-    }
+    onUpdate({ units, customTemplates });
+    onNext();
   };
 
   const handlePrevious = () => {
-    if (currentTowerIndex === 0 && currentWingIndex === 0) {
-      onPrevious();
-    } else {
-      goToPrevWing();
-    }
+    onPrevious();
   };
 
   const handleSave = () => {
@@ -351,8 +324,6 @@ const Step4UnitConfiguration = ({
     );
   }
 
-  const { currentPosition, totalWings } = getProgressInfo();
-
   return (
     <div className="space-y-8 animate-slide-up">
       <Card className="overflow-hidden">
@@ -361,17 +332,8 @@ const Step4UnitConfiguration = ({
             <Card.Title icon={Home} gradient>Unit Configuration</Card.Title>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
-                Wing {currentPosition} of {totalWings} • {selectedUnits.length} Selected
+                {selectedUnits.length} Selected
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copyFromPreviousWing}
-                disabled={currentTowerIndex === 0 && currentWingIndex === 0}
-                icon={Copy}
-              >
-                Copy from Previous Wing
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -383,36 +345,46 @@ const Step4UnitConfiguration = ({
             </div>
           </div>
           <Card.Subtitle>
-            Configure units for each wing. Select units to apply templates or make bulk changes.
+            Select a tower-wing combination and configure units. Select units to apply templates or make bulk changes.
           </Card.Subtitle>
         </Card.Header>
 
         <Card.Content>
-          {/* Current Wing Header */}
+          {/* Tower-Wing Selection */}
           <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl flex items-center justify-center font-bold text-lg">
-                {String.fromCharCode(65 + currentWingIndex)}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">
-                  {currentTower.name || currentTower.customName} - {currentWing.name}
-                </h3>
-                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    {currentWing.type} Wing
-                  </span>
-                  <span className="flex items-center">
-                    <Home className="w-4 h-4 mr-1" />
-                    {wingUnits.length} Total Units
-                  </span>
-                  <span className="flex items-center">
-                    <Settings className="w-4 h-4 mr-1" />
-                    {currentWing.lifts} Lifts
-                  </span>
-                </div>
+                <label className="form-label">Select Tower & Wing to Configure</label>
+                <Select
+                  placeholder="Choose tower and wing..."
+                  options={towerWingOptions}
+                  value={selectedTowerWing}
+                  onChange={(e) => {
+                    setSelectedTowerWing(e.target.value);
+                    setSelectedUnits([]);
+                  }}
+                  className="text-lg font-medium"
+                />
               </div>
+              
+              {currentTowerWing && (
+                <div className="text-sm text-gray-600">
+                  <div className="flex items-center space-x-4">
+                    <span className="flex items-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      {currentWing.type} Wing
+                    </span>
+                    <span className="flex items-center">
+                      <Home className="w-4 h-4 mr-1" />
+                      {wingUnits.length} Total Units
+                    </span>
+                    <span className="flex items-center">
+                      <Settings className="w-4 h-4 mr-1" />
+                      {currentWing.lifts || 0} Lifts
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Progress Bar */}
@@ -431,57 +403,50 @@ const Step4UnitConfiguration = ({
             <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
               <h4 className="font-bold text-purple-800 mb-4">🔧 Selected Units Configuration</h4>
               
-              <div className="p-4 bg-white rounded-lg border border-purple-200">
-                <p className="text-sm text-purple-800 font-medium mb-4">
-                  {selectedUnits.length} unit{selectedUnits.length > 1 ? 's' : ''} selected
-                </p>
-                
-                {/* Template Application */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="form-label">Apply Template</label>
-                    <div className="flex space-x-2">
-                      <Select
-                        placeholder="Choose template"
-                        options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
-                        value={selectedTemplate}
-                        onChange={(e) => setSelectedTemplate(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => {
-                          if (selectedTemplate && allTemplates[selectedTemplate]) {
-                            applyTemplateToSelected(allTemplates[selectedTemplate]);
-                            setSelectedTemplate('');
-                          }
-                        }}
-                        disabled={!selectedTemplate}
-                      >
-                        Apply
-                      </Button>
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="form-label">Apply Template</label>
+                  <div className="flex space-x-2">
+                    <Select
+                      placeholder="Choose template"
+                      options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedTemplate && allTemplates[selectedTemplate]) {
+                          applyTemplateToSelected(allTemplates[selectedTemplate]);
+                          setSelectedTemplate('');
+                        }
+                      }}
+                      disabled={!selectedTemplate}
+                    >
+                      Apply
+                    </Button>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="form-label">Quick Actions</label>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowTemplateBuilder(true)}
-                      >
-                        Design Layout
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={removeSelectedUnits}
-                      >
-                        Remove Selected
-                      </Button>
-                    </div>
+                <div>
+                  <label className="form-label">Quick Actions</label>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTemplateBuilder(true)}
+                    >
+                      Design Layout
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={removeSelectedUnits}
+                    >
+                      Remove Selected
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -497,14 +462,14 @@ const Step4UnitConfiguration = ({
                 <div className="flex space-x-2">
                   <Select
                     placeholder="Select floor"
-                    options={Object.entries(currentWing.floorTypes)
+                    options={currentWing.floorTypes ? Object.entries(currentWing.floorTypes)
                       .filter(([_, config]) => config.enabled && config.count > 0)
                       .flatMap(([floorType, config]) => 
                         Array.from({ length: config.count }, (_, i) => ({
                           value: `${currentTower.id}-${currentWing.id}-${floorType}-${i + 1}`,
                           label: `${floorType} ${i + 1}`
                         }))
-                      )}
+                      ) : []}
                     value=""
                     onChange={(e) => {
                       if (e.target.value) {
@@ -519,14 +484,16 @@ const Step4UnitConfiguration = ({
                     size="sm"
                     onClick={() => {
                       // Add 4 units to all floors
-                      Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
-                        if (config.enabled && config.count > 0) {
-                          for (let i = 1; i <= config.count; i++) {
-                            const floorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
-                            addUnitsToFloor(floorId, 4);
+                      if (currentWing.floorTypes) {
+                        Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
+                          if (config.enabled && config.count > 0) {
+                            for (let i = 1; i <= config.count; i++) {
+                              const floorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
+                              addUnitsToFloor(floorId, 4);
+                            }
                           }
-                        }
-                      });
+                        });
+                      }
                     }}
                   >
                     Add 4 to All Floors
@@ -570,14 +537,16 @@ const Step4UnitConfiguration = ({
                 variant="primary"
                 onClick={() => {
                   // Add units to all floors
-                  Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
-                    if (config.enabled && config.count > 0) {
-                      for (let i = 1; i <= config.count; i++) {
-                        const floorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
-                        addUnitsToFloor(floorId, 4);
+                  if (currentWing.floorTypes) {
+                    Object.entries(currentWing.floorTypes).forEach(([floorType, config]) => {
+                      if (config.enabled && config.count > 0) {
+                        for (let i = 1; i <= config.count; i++) {
+                          const floorId = `${currentTower.id}-${currentWing.id}-${floorType}-${i}`;
+                          addUnitsToFloor(floorId, 4);
+                        }
                       }
-                    }
-                  });
+                    });
+                  }
                 }}
                 icon={Plus}
               >
@@ -699,8 +668,8 @@ const Step4UnitConfiguration = ({
                 ) : (
                   <span>
                     Next: {hasNextWing() 
-                      ? `${currentWing.name} → ${currentTower.wings[currentWingIndex + 1].name}` 
-                      : `${currentTower.name || currentTower.customName} → ${towers[currentTowerIndex + 1].name || towers[currentTowerIndex + 1].customName}`
+                      ? `${currentWing.name} → ${currentTower.wings[currentTowerWing.wingIndex + 1]?.name}` 
+                      : `${currentTower.name || currentTower.customName} → ${towers[currentTowerWing.towerIndex + 1]?.name || towers[currentTowerWing.towerIndex + 1]?.customName}`
                     }
                   </span>
                 )}
@@ -714,8 +683,8 @@ const Step4UnitConfiguration = ({
           onNext={handleNext}
           onSave={handleSave}
           isValid={validationResult.isValid}
-          nextLabel={isLastWing() ? "Next: Review & Finalize" : "Next Wing"}
-          previousLabel={currentTowerIndex === 0 && currentWingIndex === 0 ? "Back: Floor Configuration" : "Previous Wing"}
+          nextLabel="Next: Review & Finalize"
+          previousLabel="Back: Floor Configuration"
         />
       </Card>
 

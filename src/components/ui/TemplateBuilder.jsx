@@ -337,7 +337,8 @@ const TemplateBuilder = ({
     key: '',
     label: '',
     icon: 'Home',
-    color: 'bg-gray-100 border-gray-300 text-gray-800'
+    color: 'bg-gray-100 border-gray-300 text-gray-800',
+    templateColor: 'bg-blue-100 border-blue-300 text-blue-800'
   });
 
   // Initialize with selected unit data if available
@@ -502,12 +503,30 @@ const TemplateBuilder = ({
       return;
     }
 
+    // Generate a unique color for this template
+    const colors = [
+      'bg-blue-100 border-blue-300 text-blue-800',
+      'bg-green-100 border-green-300 text-green-800',
+      'bg-purple-100 border-purple-300 text-purple-800',
+      'bg-orange-100 border-orange-300 text-orange-800',
+      'bg-pink-100 border-pink-300 text-pink-800',
+      'bg-indigo-100 border-indigo-300 text-indigo-800',
+      'bg-yellow-100 border-yellow-300 text-yellow-800',
+      'bg-red-100 border-red-300 text-red-800',
+      'bg-cyan-100 border-cyan-300 text-cyan-800',
+      'bg-emerald-100 border-emerald-300 text-emerald-800'
+    ];
+    
+    const existingTemplates = Object.keys(existingTemplates || {}).length;
+    const templateColor = colors[existingTemplates % colors.length];
+
     const template = {
       name: templateName,
       type: templateType,
       ...unitConfig,
       roomLayout,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      templateColor
     };
 
     onSave(template);
@@ -520,11 +539,29 @@ const TemplateBuilder = ({
       return;
     }
 
+    // Generate a unique color for this template
+    const colors = [
+      'bg-blue-100 border-blue-300 text-blue-800',
+      'bg-green-100 border-green-300 text-green-800',
+      'bg-purple-100 border-purple-300 text-purple-800',
+      'bg-orange-100 border-orange-300 text-orange-800',
+      'bg-pink-100 border-pink-300 text-pink-800',
+      'bg-indigo-100 border-indigo-300 text-indigo-800',
+      'bg-yellow-100 border-yellow-300 text-yellow-800',
+      'bg-red-100 border-red-300 text-red-800',
+      'bg-cyan-100 border-cyan-300 text-cyan-800',
+      'bg-emerald-100 border-emerald-300 text-emerald-800'
+    ];
+    
+    const existingTemplates = Object.keys(existingTemplates || {}).length;
+    const templateColor = colors[existingTemplates % colors.length];
+
     const template = {
       name: templateName,
       type: templateType,
       ...unitConfig,
-      roomLayout
+      roomLayout,
+      templateColor
     };
 
     onApplyToSelected(template);

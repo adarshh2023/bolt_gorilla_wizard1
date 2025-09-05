@@ -28,9 +28,11 @@ const Step3FloorConfiguration = ({
   const [flatNumberingType, setFlatNumberingType] = useState(data.flatNumberingType || 'wing-floor-unit');
   const [currentTowerIndex, setCurrentTowerIndex] = useState(0);
   const [currentWingIndex, setCurrentWingIndex] = useState(0);
+  const [expandedFloors, setExpandedFloors] = useState({});
   const [selectedFloors, setSelectedFloors] = useState(new Set());
   const [bulkConfigMode, setBulkConfigMode] = useState(false);
   const [bulkConfig, setBulkConfig] = useState({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [validationResult, setValidationResult] = useState({ isValid: true, errors: {}, warnings: [] });
 
   const towers = data.towers || [];
@@ -77,6 +79,13 @@ const Step3FloorConfiguration = ({
     setFloorConfigurations(prev => ({
       ...prev,
       [floorId]: { ...getFloorConfig(floorId), ...updates }
+    }));
+  };
+
+  const toggleFloorExpansion = (floorId) => {
+    setExpandedFloors(prev => ({
+      ...prev,
+      [floorId]: !prev[floorId]
     }));
   };
 
@@ -173,15 +182,24 @@ const Step3FloorConfiguration = ({
   };
 
   const goToNextWing = () => {
+    // Scroll to top when moving to next wing
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     if (hasNextWing()) {
       setCurrentWingIndex(currentWingIndex + 1);
     } else if (hasNextTower()) {
       setCurrentTowerIndex(currentTowerIndex + 1);
       setCurrentWingIndex(0);
     }
+    
+    // Reset expanded floors for new wing
+    setExpandedFloors({});
   };
 
   const goToPrevWing = () => {
+    // Scroll to top when moving to previous wing
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     if (currentWingIndex > 0) {
       setCurrentWingIndex(currentWingIndex - 1);
     } else if (currentTowerIndex > 0) {
@@ -189,6 +207,9 @@ const Step3FloorConfiguration = ({
       const prevTower = towers[currentTowerIndex - 1];
       setCurrentWingIndex(prevTower.wings.length - 1);
     }
+    
+    // Reset expanded floors for new wing
+    setExpandedFloors({});
   };
 
   const isLastWing = () => {
@@ -212,13 +233,40 @@ const Step3FloorConfiguration = ({
     return { currentPosition: currentPosition + 1, totalWings };
   };
 
+  const generateWingSequence = () => {
+    const sequence = [];
+    towers.forEach((tower, towerIndex) => {
+      const towerName = tower.name || tower.customName || `Tower ${towerIndex + 1}`;
+      tower.wings.forEach((wing, wingIndex) => {
+        const wingData = {
+          tower: towerName,
+          wing: wing.name,
+          type: wing.type,
+          floors: Object.entries(wing.floorTypes)
+            .filter(([_, config]) => config.enabled && config.count > 0)
+            .map(([type, config]) => `${config.count} ${type}`)
+            .join(', '),
+          lifts: wing.lifts,
+          isCurrentWing: towerIndex === currentTowerIndex && wingIndex === currentWingIndex
+        };
+        sequence.push(wingData);
+      });
+    });
+    return sequence;
+  };
+
   const handleNext = () => {
     if (isLastWing()) {
-      onUpdate({ floorConfigurations, flatNumberingType });
-      onNext();
+      setShowConfirmation(true);
     } else {
       goToNextWing();
     }
+  };
+
+  const confirmAndProceed = () => {
+    onUpdate({ floorConfigurations, flatNumberingType });
+    setShowConfirmation(false);
+    onNext();
   };
 
   const handlePrevious = () => {
@@ -248,6 +296,7 @@ const Step3FloorConfiguration = ({
   }
 
   const { currentPosition, totalWings } = getProgressInfo();
+  const wingSequence = generateWingSequence();
 
   return (
     <div className="space-y-8 animate-slide-up">
@@ -464,17 +513,19 @@ const Step3FloorConfiguration = ({
               individualFloors.map((floor) => {
                 const config = getFloorConfig(floor.id);
                 const isSelected = selectedFloors.has(floor.id);
+                const isExpanded = expandedFloors[floor.id];
                 const availableUsages = USAGE_OPTIONS[floor.type] || [];
 
                 return (
                   <div key={floor.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                    {/* Floor Header - Non-expandable, just selection */}
+                    {/* Floor Header - Expandable */}
                     <div
+                      onClick={() => toggleFloorExpansion(floor.id)}
                       className={`
-                        px-6 py-4 flex items-center justify-between transition-all duration-200
+                        px-6 py-4 flex items-center justify-between transition-all duration-200 cursor-pointer
                         ${isSelected && bulkConfigMode
                           ? 'bg-gradient-to-r from-purple-100 to-pink-100 border-l-4 border-purple-500'
-                          : 'bg-gradient-to-r from-gray-50 to-blue-50'
+                          : 'bg-gradient-to-r from-gray-50 to-blue-50 hover:from-gray-100 hover:to-blue-100'
                         }
                       `}
                     >
@@ -483,7 +534,10 @@ const Step3FloorConfiguration = ({
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleFloorSelection(floor.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleFloorSelection(floor.id);
+                            }}
                             className="w-5 h-5 text-purple-600 rounded"
                           />
                         )}
@@ -513,11 +567,13 @@ const Step3FloorConfiguration = ({
                           w-3 h-3 rounded-full
                           ${config.floorType ? 'bg-green-500' : 'bg-gray-300'}
                         `}></div>
+                        {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
                       </div>
                     </div>
 
-                    {/* Floor Configuration - Always visible, no expansion */}
-                    <div className="p-6 space-y-6 bg-white">
+                    {/* Floor Configuration - Expandable */}
+                    {isExpanded && (
+                      <div className="p-6 space-y-6 bg-white animate-slide-up">
                       {/* Floor Type Selection for Floors type */}
                       {floor.type === 'Floors' && (
                         <div>
@@ -631,7 +687,8 @@ const Step3FloorConfiguration = ({
                         placeholder="Special requirements, notes, or specifications for this floor"
                         rows={2}
                       />
-                    </div>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -705,6 +762,86 @@ const Step3FloorConfiguration = ({
           previousLabel={currentTowerIndex === 0 && currentWingIndex === 0 ? "Back: Tower Declaration" : "Previous Wing"}
         />
       </Card>
+
+      {/* Confirmation Modal for last wing */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">🏗️ Floor Configuration Complete</h3>
+                <p className="text-gray-600 mt-1">Review your floor configuration before proceeding to unit setup</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">📋 Wings Configured</h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  You have successfully configured floors for all wings. Here's a summary:
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {wingSequence.map((item, index) => (
+                  <div key={index} className={`flex items-center p-4 rounded-lg border ${
+                    item.isCurrentWing 
+                      ? 'bg-gradient-to-r from-green-100 to-emerald-100 border-green-300' 
+                      : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                  }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mr-4 ${
+                      item.isCurrentWing 
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white' 
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    }`}>
+                      {item.isCurrentWing ? '✓' : index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-800">
+                        {item.tower} - {item.wing}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {item.type} • {item.floors} • {item.lifts} lifts
+                      </div>
+                    </div>
+                    {item.isCurrentWing && (
+                      <div className="text-green-600 font-semibold text-sm">
+                        Just Completed
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                <h5 className="font-semibold text-yellow-800 mb-2">🎯 Next Step</h5>
+                <p className="text-sm text-yellow-700">
+                  You'll now proceed to unit configuration where you can set up individual units, apply templates, and design room layouts for each wing.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <Button
+                variant="secondary"
+                onClick={() => setShowConfirmation(false)}
+              >
+                ← Continue Configuring Floors
+              </Button>
+              
+              <Button
+                variant="primary"
+                onClick={confirmAndProceed}
+              >
+                ✓ Proceed to Unit Configuration
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
