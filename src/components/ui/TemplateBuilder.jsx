@@ -337,8 +337,31 @@ const TemplateBuilder = ({
     key: '',
     label: '',
     icon: 'Home',
-    color: 'bg-gray-100 border-gray-300 text-gray-800',
-    templateColor: 'bg-blue-100 border-blue-300 text-blue-800'
+    color: 'bg-gray-100 border-gray-300 text-gray-800'
+  });
+  const [templateColor, setTemplateColor] = useState('bg-blue-100 border-blue-300 text-blue-800');
+
+  // Available template colors
+  const TEMPLATE_COLORS = [
+    { value: 'bg-blue-100 border-blue-300 text-blue-800', label: 'Blue', preview: 'bg-blue-500' },
+    { value: 'bg-yellow-100 border-yellow-300 text-yellow-800', label: 'Yellow', preview: 'bg-yellow-500' },
+    { value: 'bg-green-100 border-green-300 text-green-800', label: 'Green', preview: 'bg-green-500' },
+    { value: 'bg-purple-100 border-purple-300 text-purple-800', label: 'Purple', preview: 'bg-purple-500' },
+    { value: 'bg-red-100 border-red-300 text-red-800', label: 'Red', preview: 'bg-red-500' },
+    { value: 'bg-pink-100 border-pink-300 text-pink-800', label: 'Pink', preview: 'bg-pink-500' },
+    { value: 'bg-indigo-100 border-indigo-300 text-indigo-800', label: 'Indigo', preview: 'bg-indigo-500' },
+    { value: 'bg-orange-100 border-orange-300 text-orange-800', label: 'Orange', preview: 'bg-orange-500' },
+    { value: 'bg-cyan-100 border-cyan-300 text-cyan-800', label: 'Cyan', preview: 'bg-cyan-500' },
+    { value: 'bg-emerald-100 border-emerald-300 text-emerald-800', label: 'Emerald', preview: 'bg-emerald-500' },
+    { value: 'bg-gray-100 border-gray-300 text-gray-800', label: 'Gray', preview: 'bg-gray-500' },
+    { value: 'bg-slate-100 border-slate-300 text-slate-800', label: 'Slate', preview: 'bg-slate-500' }
+  ];
+
+  // Initialize template color based on selected unit or default
+  useEffect(() => {
+    if (selectedUnit && selectedUnit.templateColor) {
+      setTemplateColor(selectedUnit.templateColor);
+    }
   });
 
   // Initialize with selected unit data if available
@@ -503,23 +526,6 @@ const TemplateBuilder = ({
       return;
     }
 
-    // Generate a unique color for this template
-    const colors = [
-      'bg-blue-100 border-blue-300 text-blue-800',
-      'bg-green-100 border-green-300 text-green-800',
-      'bg-purple-100 border-purple-300 text-purple-800',
-      'bg-orange-100 border-orange-300 text-orange-800',
-      'bg-pink-100 border-pink-300 text-pink-800',
-      'bg-indigo-100 border-indigo-300 text-indigo-800',
-      'bg-yellow-100 border-yellow-300 text-yellow-800',
-      'bg-red-100 border-red-300 text-red-800',
-      'bg-cyan-100 border-cyan-300 text-cyan-800',
-      'bg-emerald-100 border-emerald-300 text-emerald-800'
-    ];
-    
-    const existingTemplates = Object.keys(existingTemplates || {}).length;
-    const templateColor = colors[existingTemplates % colors.length];
-
     const template = {
       name: templateName,
       type: templateType,
@@ -538,23 +544,6 @@ const TemplateBuilder = ({
       alert('Please enter a template name');
       return;
     }
-
-    // Generate a unique color for this template
-    const colors = [
-      'bg-blue-100 border-blue-300 text-blue-800',
-      'bg-green-100 border-green-300 text-green-800',
-      'bg-purple-100 border-purple-300 text-purple-800',
-      'bg-orange-100 border-orange-300 text-orange-800',
-      'bg-pink-100 border-pink-300 text-pink-800',
-      'bg-indigo-100 border-indigo-300 text-indigo-800',
-      'bg-yellow-100 border-yellow-300 text-yellow-800',
-      'bg-red-100 border-red-300 text-red-800',
-      'bg-cyan-100 border-cyan-300 text-cyan-800',
-      'bg-emerald-100 border-emerald-300 text-emerald-800'
-    ];
-    
-    const existingTemplates = Object.keys(existingTemplates || {}).length;
-    const templateColor = colors[existingTemplates % colors.length];
 
     const template = {
       name: templateName,
@@ -860,6 +849,41 @@ const TemplateBuilder = ({
                   min={0}
                   max={3}
                 />
+                
+                {/* Template Color Selection */}
+                <div>
+                  <label className="form-label">Template Color</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TEMPLATE_COLORS.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setTemplateColor(color.value)}
+                        className={`
+                          flex items-center p-2 rounded-lg border-2 text-xs transition-all duration-200
+                          ${templateColor === color.value 
+                            ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md' 
+                            : 'hover:shadow-sm'
+                          }
+                          ${color.value}
+                        `}
+                      >
+                        <div className={`w-3 h-3 rounded-full mr-2 ${color.preview}`}></div>
+                        <span className="font-medium">{color.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Template Preview */}
+                  <div className="mt-3">
+                    <div className={`
+                      inline-block px-3 py-2 rounded-lg border-2 text-sm font-medium
+                      ${templateColor}
+                    `}>
+                      Preview: {templateName || 'Template Name'}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

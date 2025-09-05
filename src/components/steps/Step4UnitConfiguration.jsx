@@ -30,7 +30,7 @@ const PREDEFINED_TEMPLATES = {
     commonWashrooms: 1,
     carpetArea: 750,
     builtUpArea: 950,
-    templateColor: 'bg-green-100 border-green-300 text-green-800'
+    templateColor: 'bg-yellow-100 border-yellow-300 text-yellow-800'
   },
   'Standard 3BHK': {
     name: 'Standard 3BHK',
@@ -40,7 +40,7 @@ const PREDEFINED_TEMPLATES = {
     commonWashrooms: 1,
     carpetArea: 1100,
     builtUpArea: 1400,
-    templateColor: 'bg-purple-100 border-purple-300 text-purple-800'
+    templateColor: 'bg-green-100 border-green-300 text-green-800'
   },
   'Standard Office': {
     name: 'Standard Office',
@@ -53,7 +53,7 @@ const PREDEFINED_TEMPLATES = {
     parkingSpaces: 2,
     carpetArea: 800,
     builtUpArea: 1000,
-    templateColor: 'bg-orange-100 border-orange-300 text-orange-800'
+    templateColor: 'bg-purple-100 border-purple-300 text-purple-800'
   }
 };
 
@@ -406,48 +406,89 @@ const Step4UnitConfiguration = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="form-label">Apply Template</label>
-                  <div className="flex space-x-2">
-                    <Select
-                      placeholder="Choose template"
-                      options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
-                      value={selectedTemplate}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => {
-                        if (selectedTemplate && allTemplates[selectedTemplate]) {
-                          applyTemplateToSelected(allTemplates[selectedTemplate]);
-                          setSelectedTemplate('');
-                        }
-                      }}
-                      disabled={!selectedTemplate}
-                    >
-                      Apply
-                    </Button>
+                  <div className="space-y-3">
+                    {/* Template Selection Dropdown */}
+                    <div className="flex space-x-2">
+                      <Select
+                        placeholder="Choose template"
+                        options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
+                        value={selectedTemplate}
+                        onChange={(e) => setSelectedTemplate(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedTemplate && allTemplates[selectedTemplate]) {
+                            applyTemplateToSelected(allTemplates[selectedTemplate]);
+                            setSelectedTemplate('');
+                          }
+                        }}
+                        disabled={!selectedTemplate}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                    
+                    {/* Template Preview */}
+                    {selectedTemplate && allTemplates[selectedTemplate] && (
+                      <div className={`
+                        p-3 rounded-lg border-2 text-sm
+                        ${allTemplates[selectedTemplate].templateColor || 'bg-gray-100 border-gray-300 text-gray-800'}
+                      `}>
+                        <div className="font-semibold">{selectedTemplate}</div>
+                        <div className="text-xs opacity-75">
+                          {allTemplates[selectedTemplate].type} • 
+                          {allTemplates[selectedTemplate].carpetArea} sq ft • 
+                          {allTemplates[selectedTemplate].balconies} balconies
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <label className="form-label">Quick Actions</label>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowTemplateBuilder(true)}
-                    >
-                      Design Layout
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={removeSelectedUnits}
-                    >
-                      Remove Selected
-                    </Button>
+                  <label className="form-label">Available Templates</label>
+                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                    {Object.entries(allTemplates).map(([name, template]) => (
+                      <button
+                        key={name}
+                        onClick={() => setSelectedTemplate(name)}
+                        className={`
+                          p-2 rounded-lg border-2 text-xs text-left transition-all duration-200
+                          ${selectedTemplate === name 
+                            ? 'ring-2 ring-purple-500 ring-offset-1' 
+                            : 'hover:shadow-md'
+                          }
+                          ${template.templateColor || 'bg-gray-100 border-gray-300 text-gray-800'}
+                        `}
+                      >
+                        <div className="font-semibold truncate">{name}</div>
+                        <div className="opacity-75 truncate">{template.type}</div>
+                      </button>
+                    ))}
                   </div>
+                </div>
+              </div>
+              
+              <div className="mt-4">
+                <label className="form-label">Quick Actions</label>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTemplateBuilder(true)}
+                  >
+                    Design Layout
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={removeSelectedUnits}
+                  >
+                    Remove Selected
+                  </Button>
                 </div>
               </div>
             </div>
@@ -607,9 +648,7 @@ const Step4UnitConfiguration = ({
                         {hasTemplate && (
                           <div className={`
                             inline-block px-2 py-1 rounded text-xs font-medium border mb-1
-                            ${unit.type === 'Office' || unit.type === 'Retail' 
-                              ? 'bg-orange-100 text-orange-800 border-orange-200'
-                              : 'bg-blue-100 text-blue-800 border-blue-200'
+                            ${allTemplates[unit.templateName]?.templateColor || 'bg-gray-100 text-gray-800 border-gray-200'
                             }
                           `}>
                             {unit.templateName}
@@ -629,8 +668,142 @@ const Step4UnitConfiguration = ({
             </div>
           )}
 
+          {/* Unit Type and Template Legends */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Unit Type Legend */}
+            <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                Unit Types Breakdown
+              </h4>
+              <div className="space-y-3">
+                {UNIT_TYPES.map(unitType => {
+                  const count = wingUnits.filter(unit => 
+                    allTemplates[unit.templateName]?.type === unitType || unit.type === unitType
+                  ).length;
+                  
+                  if (count === 0) return null;
+                  
+                  return (
+                    <div key={unitType} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
+                        <span className="text-sm font-medium text-gray-700">{unitType}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg font-bold text-blue-600">{count}</span>
+                        <span className="text-xs text-gray-500">
+                          ({((count / wingUnits.length) * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Untyped units */}
+                {(() => {
+                  const untypedCount = wingUnits.filter(unit => 
+                    !unit.templateName && !unit.type
+                  ).length;
+                  
+                  if (untypedCount > 0) {
+                    return (
+                      <div className="flex items-center justify-between border-t pt-3">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full mr-3"></div>
+                          <span className="text-sm font-medium text-gray-500 italic">Not Defined</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg font-bold text-gray-500">{untypedCount}</span>
+                          <span className="text-xs text-gray-400">
+                            ({((untypedCount / wingUnits.length) * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+
+            {/* Template Usage Legend */}
+            <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                Template Usage
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(allTemplates).map(([templateName, template]) => {
+                  const count = wingUnits.filter(unit => unit.templateName === templateName).length;
+                  
+                  if (count === 0) return null;
+                  
+                  return (
+                    <div key={templateName} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`
+                          w-3 h-3 rounded-full mr-3 border
+                          ${template.templateColor ? 
+                            template.templateColor.includes('bg-blue') ? 'bg-blue-400 border-blue-500' :
+                            template.templateColor.includes('bg-green') ? 'bg-green-400 border-green-500' :
+                            template.templateColor.includes('bg-purple') ? 'bg-purple-400 border-purple-500' :
+                            template.templateColor.includes('bg-orange') ? 'bg-orange-400 border-orange-500' :
+                            template.templateColor.includes('bg-yellow') ? 'bg-yellow-400 border-yellow-500' :
+                            template.templateColor.includes('bg-pink') ? 'bg-pink-400 border-pink-500' :
+                            template.templateColor.includes('bg-indigo') ? 'bg-indigo-400 border-indigo-500' :
+                            template.templateColor.includes('bg-red') ? 'bg-red-400 border-red-500' :
+                            template.templateColor.includes('bg-cyan') ? 'bg-cyan-400 border-cyan-500' :
+                            template.templateColor.includes('bg-emerald') ? 'bg-emerald-400 border-emerald-500' :
+                            'bg-gray-400 border-gray-500'
+                            : 'bg-gray-400 border-gray-500'
+                          }
+                        `}></div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-700 block truncate max-w-32">
+                            {templateName}
+                          </span>
+                          <span className="text-xs text-gray-500">{template.type}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg font-bold text-purple-600">{count}</span>
+                        <span className="text-xs text-gray-500">
+                          ({((count / wingUnits.length) * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Units without templates */}
+                {(() => {
+                  const noTemplateCount = wingUnits.filter(unit => !unit.templateName).length;
+                  
+                  if (noTemplateCount > 0) {
+                    return (
+                      <div className="flex items-center justify-between border-t pt-3">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-gray-300 rounded-full mr-3 border border-gray-400"></div>
+                          <span className="text-sm font-medium text-gray-500 italic">No Template</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg font-bold text-gray-500">{noTemplateCount}</span>
+                          <span className="text-xs text-gray-400">
+                            ({((noTemplateCount / wingUnits.length) * 100).toFixed(1)}%)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+          </div>
+
           {/* Wing Summary */}
-          <div className="mt-10 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
+          <div className="mt-8 p-6 bg-gradient-to-r from-gray-900 to-blue-900 text-white rounded-2xl">
             <h4 className="text-xl font-bold mb-4">📊 {currentWing.name} Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
