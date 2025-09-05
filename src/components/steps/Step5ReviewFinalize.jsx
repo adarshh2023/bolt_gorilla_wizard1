@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Download, FileText, Share2, AlertTriangle, BarChart3, TreePine, Building, Home, Users, Car, Shield, Zap, Building2, Layers } from 'lucide-react';
+import { CheckCircle, Download, FileText, Share2, AlertTriangle, BarChart3, TreePine, Building, Home, Users, Car, Shield, Zap, Building2, Layers, Bed, Bath, Sofa, Utensils, MapPin } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import StepNavigation from '../wizard/StepNavigation';
@@ -19,6 +19,7 @@ const Step5ReviewFinalize = ({
     structure: true,
     validation: false
   });
+  const [expandedNodes, setExpandedNodes] = useState(new Set(['root']));
   const [exportStatus, setExportStatus] = useState('');
 
   useEffect(() => {
@@ -36,6 +37,7 @@ const Step5ReviewFinalize = ({
       totalBuiltUpArea: 0,
       unitBreakdown: {},
       floorTypeBreakdown: {},
+      roomBreakdown: {},
       timeline: {
         duration: 0,
         startDate: data.startDate,
@@ -64,7 +66,7 @@ const Step5ReviewFinalize = ({
       });
     }
 
-    // Calculate unit stats
+    // Calculate unit stats and room breakdown
     if (data.units) {
       Object.values(data.units).forEach(floorUnits => {
         if (Array.isArray(floorUnits)) {
@@ -74,6 +76,20 @@ const Step5ReviewFinalize = ({
             stats.totalBuiltUpArea += unit.builtUpArea || 0;
             const unitType = unit.type || 'Unknown';
             stats.unitBreakdown[unitType] = (stats.unitBreakdown[unitType] || 0) + 1;
+
+            // Count rooms from room layout
+            if (unit.roomLayout && unit.roomLayout.children) {
+              const countRooms = (rooms) => {
+                rooms.forEach(room => {
+                  const roomType = room.type || 'unknown';
+                  stats.roomBreakdown[roomType] = (stats.roomBreakdown[roomType] || 0) + 1;
+                  if (room.children && room.children.length > 0) {
+                    countRooms(room.children);
+                  }
+                });
+              };
+              countRooms(unit.roomLayout.children);
+            }
           });
         }
       });
@@ -155,7 +171,7 @@ const Step5ReviewFinalize = ({
     });
   };
 
-  const generateProjectTree = () => {
+  const generateCompleteProjectTree = () => {
     const tree = [];
     
     if (data.towers) {
@@ -174,6 +190,7 @@ const Step5ReviewFinalize = ({
               type: 'wing',
               name: wing.name || `Wing ${wingIndex + 1}`,
               wingType: wing.type || 'Standard',
+              lifts: wing.lifts || 0,
               children: []
             };
 
@@ -193,20 +210,45 @@ const Step5ReviewFinalize = ({
                       primaryType: floorConfig.floorType,
                       usages: floorConfig.usages || [],
                       unitsCount: Array.isArray(floorUnits) ? floorUnits.length : 0,
-                      children: Array.isArray(floorUnits) ? floorUnits.map((unit, unitIndex) => ({
-                        id: unit.id || `unit-${unitIndex}`,
-                        type: 'unit',
-                        name: unit.id || `Unit ${unitIndex + 1}`,
-                        unitType: unit.type || 'Unknown',
-                        templateName: unit.templateName,
-                        area: unit.carpetArea || 0,
-                        status: unit.status || 'Available',
-                        balconies: unit.balconies || 0,
-                        washrooms: (unit.attachedWashrooms || 0) + (unit.commonWashrooms || 0),
-                        frontage: unit.frontage || 0,
-                        monthlyRent: unit.monthlyRent || 0
-                      })) : []
+                      children: []
                     };
+
+                    // Add units to floor
+                    if (Array.isArray(floorUnits)) {
+                      floorUnits.forEach((unit, unitIndex) => {
+                        const unitNode = {
+                          id: unit.id || `unit-${unitIndex}`,
+                          type: 'unit',
+                          name: unit.id || `Unit ${unitIndex + 1}`,
+                          unitType: unit.type || 'Unknown',
+                          templateName: unit.templateName,
+                          area: unit.carpetArea || 0,
+                          builtUpArea: unit.builtUpArea || 0,
+                          status: unit.status || 'Available',
+                          balconies: unit.balconies || 0,
+                          washrooms: (unit.attachedWashrooms || 0) + (unit.commonWashrooms || 0),
+                          frontage: unit.frontage || 0,
+                          monthlyRent: unit.monthlyRent || 0,
+                          children: []
+                        };
+
+                        // Add room layout if exists
+                        if (unit.roomLayout && unit.roomLayout.children) {
+                          const buildRoomTree = (rooms) => {
+                            return rooms.map(room => ({
+                              id: room.id,
+                              type: 'room',
+                              name: room.name,
+                              roomType: room.type,
+                              children: room.children ? buildRoomTree(room.children) : []
+                            }));
+                          };
+                          unitNode.children = buildRoomTree(unit.roomLayout.children);
+                        }
+
+                        floorNode.children.push(unitNode);
+                      });
+                    }
                     
                     wingNode.children.push(floorNode);
                   }
@@ -252,8 +294,50 @@ const Step5ReviewFinalize = ({
     }
   };
 
+  const getRoomIcon = (roomType) => {
+    const iconMap = {
+      living_room: Sofa,
+      bedroom: Bed,
+      washroom: Bath,
+      kitchen: Utensils,
+      balcony: TreePine,
+      entrance: Home,
+      dining: Users,
+      study: Building,
+      storage: Building2,
+      reception: Users,
+      workspace: Building,
+      cabin: Building,
+      meeting_room: Users,
+      pantry: Utensils,
+      server_room: Building2
+    };
+    return iconMap[roomType] || Home;
+  };
+
+  const getRoomColor = (roomType) => {
+    const colorMap = {
+      living_room: 'text-blue-600',
+      bedroom: 'text-green-600',
+      washroom: 'text-purple-600',
+      kitchen: 'text-orange-600',
+      balcony: 'text-emerald-600',
+      entrance: 'text-gray-600',
+      dining: 'text-pink-600',
+      study: 'text-indigo-600',
+      storage: 'text-yellow-600',
+      reception: 'text-cyan-600',
+      workspace: 'text-blue-600',
+      cabin: 'text-purple-600',
+      meeting_room: 'text-green-600',
+      pantry: 'text-orange-600',
+      server_room: 'text-red-600'
+    };
+    return colorMap[roomType] || 'text-gray-600';
+  };
+
   const TreeNode = ({ node, level = 0 }) => {
-    const [isExpanded, setIsExpanded] = useState(level < 2);
+    const [isExpanded, setIsExpanded] = useState(level < 3); // Auto-expand first 3 levels
     
     const getNodeIcon = () => {
       switch (node.type) {
@@ -261,6 +345,9 @@ const Step5ReviewFinalize = ({
         case 'wing': return <Building2 className="w-4 h-4 text-green-600" />;
         case 'floor': return <Layers className="w-4 h-4 text-purple-600" />;
         case 'unit': return <Home className="w-4 h-4 text-orange-600" />;
+        case 'room': 
+          const RoomIcon = getRoomIcon(node.roomType);
+          return <RoomIcon className={`w-4 h-4 ${getRoomColor(node.roomType)}`} />;
         default: return null;
       }
     };
@@ -271,18 +358,21 @@ const Step5ReviewFinalize = ({
         case 'wing': return 'bg-green-50 border-green-200 text-green-800';
         case 'floor': return 'bg-purple-50 border-purple-200 text-purple-800';
         case 'unit': return `bg-orange-50 border-orange-200 text-orange-800 ${node.status === 'Sold' ? 'opacity-60' : ''}`;
+        case 'room': return 'bg-gray-50 border-gray-200 text-gray-700';
         default: return 'bg-gray-50 border-gray-200 text-gray-800';
       }
     };
 
     const getNodeDetails = () => {
       switch (node.type) {
+        case 'tower':
+          return `${node.children?.length || 0} wings`;
         case 'wing':
-          return `${node.wingType} • ${node.children?.length || 0} floors`;
+          return `${node.wingType} • ${node.lifts} lifts • ${node.children?.length || 0} floors`;
         case 'floor':
           const details = [];
           if (node.primaryType) details.push(node.primaryType);
-          if (node.usages?.length > 0) details.push(`+${node.usages.length} usage types`);
+          if (node.usages?.length > 0) details.push(`${node.usages.length} usage types`);
           details.push(`${node.unitsCount} units`);
           return details.join(' • ');
         case 'unit':
@@ -295,42 +385,73 @@ const Step5ReviewFinalize = ({
           if (node.frontage > 0) unitDetails.push(`${node.frontage}ft frontage`);
           if (node.monthlyRent > 0) unitDetails.push(`₹${node.monthlyRent.toLocaleString()}/mo`);
           if (node.status && node.status !== 'Available') unitDetails.push(node.status);
+          if (node.children?.length > 0) unitDetails.push(`${node.children.length} rooms`);
           return unitDetails.join(' • ');
+        case 'room':
+          const roomDetails = [];
+          roomDetails.push(node.roomType?.replace('_', ' ') || 'Room');
+          if (node.children?.length > 0) roomDetails.push(`${node.children.length} sub-rooms`);
+          return roomDetails.join(' • ');
         default:
           return '';
       }
     };
 
     const paddingStyle = { paddingLeft: `${level * 16}px` };
+    const hasChildren = node.children && node.children.length > 0;
 
     return (
       <div style={paddingStyle}>
         <div className={`
           flex items-center p-3 rounded-lg border mb-2 transition-all duration-200
           ${getNodeColor()}
-          hover:shadow-md cursor-pointer
+          hover:shadow-md cursor-pointer group
         `}>
           <div className="flex items-center space-x-3 flex-1">
-            {node.children && node.children.length > 0 && (
+            {hasChildren && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-gray-500 hover:text-gray-700 w-6 h-6 flex items-center justify-center"
+                className="text-gray-500 hover:text-gray-700 w-6 h-6 flex items-center justify-center transition-transform duration-200"
                 aria-label={isExpanded ? 'Collapse' : 'Expand'}
               >
-                {isExpanded ? '▼' : '▶'}
+                <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                  ▶
+                </span>
               </button>
             )}
+            {!hasChildren && <div className="w-6"></div>}
+            
             {getNodeIcon()}
-            <div className="flex-1">
-              <div className="font-medium">{node.name}</div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="font-medium truncate">{node.name}</div>
               {getNodeDetails() && (
-                <div className="text-sm opacity-75">{getNodeDetails()}</div>
+                <div className="text-sm opacity-75 truncate">{getNodeDetails()}</div>
               )}
             </div>
           </div>
+
+          {/* Node-specific indicators */}
+          <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {node.type === 'unit' && node.templateName && (
+              <div className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                Template
+              </div>
+            )}
+            {node.type === 'unit' && node.children?.length > 0 && (
+              <div className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                Layout
+              </div>
+            )}
+            {node.type === 'room' && node.children?.length > 0 && (
+              <div className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                Nested
+              </div>
+            )}
+          </div>
         </div>
         
-        {isExpanded && node.children && node.children.length > 0 && (
+        {isExpanded && hasChildren && (
           <div className="ml-4 animate-slide-up">
             {node.children.map(child => (
               <TreeNode key={child.id} node={child} level={level + 1} />
@@ -365,7 +486,7 @@ const Step5ReviewFinalize = ({
     }
   };
 
-  const projectTree = generateProjectTree();
+  const projectTree = generateCompleteProjectTree();
 
   return (
     <div className="space-y-8 animate-slide-up">
@@ -393,7 +514,7 @@ const Step5ReviewFinalize = ({
             </div>
           </div>
           <Card.Subtitle>
-            Review your complete project configuration, validate all settings, and finalize the project creation.
+            Review your complete project configuration including the full hierarchy of towers, wings, floors, units, and room layouts.
           </Card.Subtitle>
           {exportStatus && (
             <div className="mt-2 p-2 bg-green-100 text-green-800 rounded text-sm">
@@ -496,7 +617,7 @@ const Step5ReviewFinalize = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="p-4 bg-white rounded-lg border border-blue-200">
                     <h5 className="font-semibold text-gray-800 mb-3">📐 Area Summary</h5>
                     <div className="space-y-2 text-sm">
@@ -519,24 +640,39 @@ const Step5ReviewFinalize = ({
 
                   <div className="p-4 bg-white rounded-lg border border-blue-200">
                     <h5 className="font-semibold text-gray-800 mb-3">🏠 Unit Breakdown</h5>
-                   <div className="space-y-2 text-sm">
-  {projectStats?.unitBreakdown && Object.entries(projectStats.unitBreakdown).map(([type, count]) => (
-    <div key={type} className="flex justify-between">
-      <span>{type}:</span>
-      <span className="font-medium">{count} units</span>
-    </div>
-  ))}
-  {(!projectStats?.unitBreakdown || Object.keys(projectStats.unitBreakdown).length === 0) && (
-    <div className="text-gray-500 italic">No units configured yet</div>
-  )}
-</div>
+                    <div className="space-y-2 text-sm">
+                      {projectStats?.unitBreakdown && Object.entries(projectStats.unitBreakdown).map(([type, count]) => (
+                        <div key={type} className="flex justify-between">
+                          <span>{type}:</span>
+                          <span className="font-medium">{count} units</span>
+                        </div>
+                      ))}
+                      {(!projectStats?.unitBreakdown || Object.keys(projectStats.unitBreakdown).length === 0) && (
+                        <div className="text-gray-500 italic">No units configured yet</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-lg border border-blue-200">
+                    <h5 className="font-semibold text-gray-800 mb-3">🏗️ Room Breakdown</h5>
+                    <div className="space-y-2 text-sm">
+                      {projectStats?.roomBreakdown && Object.entries(projectStats.roomBreakdown).map(([type, count]) => (
+                        <div key={type} className="flex justify-between">
+                          <span className="capitalize">{type.replace('_', ' ')}:</span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ))}
+                      {(!projectStats?.roomBreakdown || Object.keys(projectStats.roomBreakdown).length === 0) && (
+                        <div className="text-gray-500 italic">No room layouts configured</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Project Structure Tree */}
+          {/* Complete Project Structure Tree */}
           <div 
             className="mb-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 cursor-pointer"
             onClick={() => toggleSection('structure')}
@@ -544,21 +680,92 @@ const Step5ReviewFinalize = ({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <TreePine className="w-6 h-6 text-green-600" />
-                <h4 className="text-lg font-bold text-green-800">Project Structure Tree</h4>
+                <h4 className="text-lg font-bold text-green-800">Complete Project Structure</h4>
               </div>
               <div className="text-sm text-green-600">
-                {expandedSections.structure ? '▼ Hide' : '▶ Show'} Complete Hierarchy
+                {expandedSections.structure ? '▼ Hide' : '▶ Show'} Full Hierarchy (Towers → Wings → Floors → Units → Rooms)
               </div>
             </div>
             
             {expandedSections.structure && (
               <div className="animate-slide-up">
-                <div className="bg-white p-6 rounded-lg border border-green-200 max-h-96 overflow-y-auto">
+                <div className="bg-white p-6 rounded-lg border border-green-200 max-h-[600px] overflow-y-auto">
                   <div className="space-y-2">
                     {projectTree.length > 0 ? (
-                      projectTree.map(node => (
-                        <TreeNode key={node.id} node={node} />
-                      ))
+                      <>
+                        {/* Tree Legend */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <h6 className="font-semibold text-gray-800 mb-3">🗂️ Structure Legend</h6>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                            <div className="flex items-center space-x-2">
+                              <Building className="w-3 h-3 text-blue-600" />
+                              <span>Tower</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Building2 className="w-3 h-3 text-green-600" />
+                              <span>Wing</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Layers className="w-3 h-3 text-purple-600" />
+                              <span>Floor</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Home className="w-3 h-3 text-orange-600" />
+                              <span>Unit</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Bed className="w-3 h-3 text-green-600" />
+                              <span>Bedroom</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Bath className="w-3 h-3 text-purple-600" />
+                              <span>Washroom</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expandable Tree */}
+                        <div className="space-y-1">
+                          {projectTree.map(node => (
+                            <TreeNode key={node.id} node={node} />
+                          ))}
+                        </div>
+
+                        {/* Tree Statistics */}
+                        <div className="mt-6 p-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg border border-blue-200">
+                          <h6 className="font-semibold text-blue-800 mb-3">📊 Tree Statistics</h6>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-blue-700">Total Nodes:</span>
+                              <span className="ml-2 font-bold">
+                                {projectStats.totalTowers + projectStats.totalWings + projectStats.totalFloors + projectStats.totalUnits + Object.values(projectStats.roomBreakdown || {}).reduce((sum, count) => sum + count, 0)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-green-700">Units with Layouts:</span>
+                              <span className="ml-2 font-bold">
+                                {data.units ? Object.values(data.units).reduce((sum, floorUnits) => 
+                                  sum + (Array.isArray(floorUnits) ? floorUnits.filter(unit => unit.roomLayout?.children?.length > 0).length : 0), 0
+                                ) : 0}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-purple-700">Total Rooms:</span>
+                              <span className="ml-2 font-bold">
+                                {Object.values(projectStats.roomBreakdown || {}).reduce((sum, count) => sum + count, 0)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-orange-700">Templates Used:</span>
+                              <span className="ml-2 font-bold">
+                                {data.units ? new Set(Object.values(data.units).flatMap(floorUnits => 
+                                  Array.isArray(floorUnits) ? floorUnits.filter(unit => unit.templateName).map(unit => unit.templateName) : []
+                                )).size : 0}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     ) : (
                       <div className="text-gray-500 italic text-center py-8">
                         No project structure to display. Configure towers and wings first.
@@ -583,7 +790,7 @@ const Step5ReviewFinalize = ({
                   <div><strong>Type:</strong> {data.projectType || 'Not specified'}</div>
                   <div><strong>Location:</strong> {data.city || 'N/A'}, {data.state || 'N/A'}</div>
                   <div><strong>Manager:</strong> {data.manager || 'Not assigned'}</div>
-                  <div><strong>Duration:</strong> months</div>
+                  <div><strong>Duration:</strong> 0 months</div>
                 </div>
               </div>
 
@@ -608,7 +815,7 @@ const Step5ReviewFinalize = ({
                       sum + (Array.isArray(floorUnits) ? floorUnits.filter(unit => unit.templateName)?.length || 0 : 0), 0
                     ) : 0
                   }</div>
-                  <div><strong>Project Scale:</strong> {data.phaseType || 'Single'} Phase</div>
+                  <div><strong>Total Rooms:</strong> {Object.values(projectStats.roomBreakdown || {}).reduce((sum, count) => sum + count, 0)}</div>
                 </div>
               </div>
             </div>
@@ -625,11 +832,14 @@ const Step5ReviewFinalize = ({
                 </ul>
                 <ul className="space-y-2">
                   {projectStats?.unitBreakdown && Object.entries(projectStats.unitBreakdown).slice(0, 4).map(([type, count]) => (
-  <li key={type}>🏘️ {count} {type} Unit{count !== 1 ? 's' : ''}</li>
-))}
+                    <li key={type}>🏘️ {count} {type} Unit{count !== 1 ? 's' : ''}</li>
+                  ))}
                   {(!projectStats?.unitBreakdown || Object.keys(projectStats.unitBreakdown).length === 0) && (
-  <li className="text-gray-400 italic">No unit types configured</li>
-)}
+                    <li className="text-gray-400 italic">No unit types configured</li>
+                  )}
+                  {projectStats?.roomBreakdown && Object.keys(projectStats.roomBreakdown).length > 0 && (
+                    <li>🏗️ {Object.values(projectStats.roomBreakdown).reduce((sum, count) => sum + count, 0)} Total Rooms Configured</li>
+                  )}
                 </ul>
               </div>
             </div>

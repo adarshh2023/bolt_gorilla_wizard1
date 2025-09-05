@@ -17,9 +17,10 @@ export const generateProjectJSON = (projectData) => {
       manager: projectData.manager,
       towers: generateTowersJSON(projectData.towers),
       units: generateUnitsJSON(projectData.units),
-      amenities: generateAmenitiesJSON(projectData.amenities),
       floorConfigurations: projectData.floorConfigurations,
-      statistics: generateStatsJSON(projectData)
+      flatNumberingType: projectData.flatNumberingType,
+      customTemplates: projectData.customTemplates,
+      statistics: generateStatsJSON(projectData),
     },
   };
 };
@@ -27,16 +28,17 @@ export const generateProjectJSON = (projectData) => {
 const generateTowersJSON = (towers) => {
   if (!towers) return [];
 
-  return towers.map(tower => ({
+  return towers.map((tower) => ({
     id: tower.id,
     name: tower.name || tower.customName,
-    wings: tower.wings?.map(wing => ({
-      id: wing.id,
-      name: wing.name,
-      type: wing.type,
-      lifts: wing.lifts,
-      floorTypes: wing.floorTypes
-    })) || []
+    wings:
+      tower.wings?.map((wing) => ({
+        id: wing.id,
+        name: wing.name,
+        type: wing.type,
+        lifts: wing.lifts,
+        floorTypes: wing.floorTypes,
+      })) || [],
   }));
 };
 
@@ -44,24 +46,28 @@ const generateUnitsJSON = (units) => {
   if (!units) return {};
 
   const processedUnits = {};
-  
+
   Object.entries(units).forEach(([floorKey, floorUnits]) => {
-    processedUnits[floorKey] = floorUnits.map(unit => ({
+    processedUnits[floorKey] = (
+      Array.isArray(floorUnits) ? floorUnits : []
+    ).map((unit) => ({
       id: unit.id,
       type: unit.type,
+      templateName: unit.templateName,
       carpetArea: unit.carpetArea,
       builtUpArea: unit.builtUpArea,
       balconies: unit.balconies,
       balconyArea: unit.balconyArea,
       washrooms: {
         attached: unit.attachedWashrooms,
-        common: unit.commonWashrooms
+        common: unit.commonWashrooms,
       },
       facing: unit.facing,
       status: unit.status,
+      roomLayout: unit.roomLayout,
       ...(unit.frontage && { frontage: unit.frontage }),
       ...(unit.monthlyRent && { monthlyRent: unit.monthlyRent }),
-      ...(unit.parkingSpaces && { parkingSpaces: unit.parkingSpaces })
+      ...(unit.parkingSpaces && { parkingSpaces: unit.parkingSpaces }),
     }));
   });
 
@@ -75,55 +81,71 @@ const generateStatsJSON = (projectData) => {
     totalFloors: 0,
     totalUnits: 0,
     totalCarpetArea: 0,
+    totalBuiltUpArea: 0,
     unitBreakdown: {},
-    parkingSpaces: 0
+    roomBreakdown: {},
+    floorTypeBreakdown: {},
+    parkingSpaces: 0,
+    templatesUsed: 0,
+    unitsWithLayouts: 0,
   };
 
   // Calculate from towers
-  projectData.towers?.forEach(tower => {
+  projectData.towers?.forEach((tower) => {
     stats.totalWings += tower.wings?.length || 0;
-    tower.wings?.forEach(wing => {
-      Object.values(wing.floorTypes || {}).forEach(floorType => {
+    tower.wings?.forEach((wing) => {
+      Object.values(wing.floorTypes || {}).forEach((floorType) => {
         if (floorType.enabled) {
           stats.totalFloors += floorType.count;
+          const floorTypeName = floorType.name || "Unknown";
+          stats.floorTypeBreakdown[floorTypeName] =
+            (stats.floorTypeBreakdown[floorTypeName] || 0) + floorType.count;
         }
       });
     });
   });
 
   // Calculate from units
-  Object.values(projectData.units || {}).forEach(floorUnits => {
-    floorUnits.forEach(unit => {
+  Object.values(projectData.units || {}).forEach((floorUnits) => {
+    if (!Array.isArray(floorUnits)) return;
+
+    floorUnits.forEach((unit) => {
       stats.totalUnits++;
       stats.totalCarpetArea += unit.carpetArea || 0;
-      stats.unitBreakdown[unit.type] = (stats.unitBreakdown[unit.type] || 0) + 1;
+      stats.totalBuiltUpArea += unit.builtUpArea || 0;
+      stats.unitBreakdown[unit.type] =
+        (stats.unitBreakdown[unit.type] || 0) + 1;
+
+      // Count templates
+      if (unit.templateName) {
+        stats.templatesUsed++;
+      }
+
+      // Count units with room layouts
+      if (
+        unit.roomLayout &&
+        unit.roomLayout.children &&
+        unit.roomLayout.children.length > 0
+      ) {
+        stats.unitsWithLayouts++;
+
+        // Count rooms recursively
+        const countRooms = (rooms) => {
+          rooms.forEach((room) => {
+            const roomType = room.type || "unknown";
+            stats.roomBreakdown[roomType] =
+              (stats.roomBreakdown[roomType] || 0) + 1;
+            if (room.children && room.children.length > 0) {
+              countRooms(room.children);
+            }
+          });
+        };
+        countRooms(unit.roomLayout.children);
+      }
     });
   });
 
-  // Calculate parking
-  if (projectData.amenities?.parking) {
-    const parking = projectData.amenities.parking;
-    stats.parkingSpaces = (parking.covered?.cars || 0) + (parking.open?.cars || 0) + (parking.visitor?.cars || 0);
-  }
-
   return stats;
-};
-
-const generateAmenitiesJSON = (amenities) => {
-  if (!amenities) return {};
-
-  return {
-    recreational: amenities.recreational || {},
-    security: amenities.security || {},
-    utilities: amenities.utilities || {},
-    maintenance: amenities.maintenance || {},
-    parking: {
-      covered: amenities.parking?.covered || { cars: 0, bikes: 0 },
-      open: amenities.parking?.open || { cars: 0, bikes: 0 },
-      visitor: amenities.parking?.visitor || { cars: 0, bikes: 0 },
-      evCharging: amenities.parking?.evCharging || { enabled: false }
-    },
-  };
 };
 
 export const downloadJSON = (data, filename = "project-data.json") => {
