@@ -405,90 +405,69 @@ const Step4UnitConfiguration = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="form-label">Apply Template</label>
+                  <label className="form-label">Available Templates</label>
                   <div className="space-y-3">
-                    {/* Template Selection Dropdown */}
-                    <div className="flex space-x-2">
-                      <Select
-                        placeholder="Choose template"
-                        options={Object.keys(allTemplates).map(name => ({ value: name, label: name }))}
-                        value={selectedTemplate}
-                        onChange={(e) => setSelectedTemplate(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => {
-                          if (selectedTemplate && allTemplates[selectedTemplate]) {
-                            applyTemplateToSelected(allTemplates[selectedTemplate]);
-                            setSelectedTemplate('');
-                          }
-                        }}
-                        disabled={!selectedTemplate}
+                    {/* Template Buttons */}
+                    <div className="grid grid-cols-1 gap-2">
+                      {Object.entries(allTemplates).map(([name, template]) => (
+                        <button
+                          key={name}
+                          onClick={() => {
+                            applyTemplateToSelected(template);
+                          }}
+                          className={`
+                            p-3 rounded-lg border-2 text-left transition-all duration-200 hover:shadow-md
+                            ${template.templateColor || 'bg-gray-100 border-gray-300 text-gray-800'}
+                          `}
+                        >
+                          <div className="font-semibold">{name}</div>
+                          <div className="text-xs opacity-75">
+                            {template.type} • 
+                            {template.carpetArea} sq ft • 
+                            {template.balconies} balconies
+                          </div>
+                        </button>
+                      ))}
+                      
+                      {/* Add New Template Button */}
+                      <button
+                        onClick={() => setShowTemplateBuilder(true)}
+                        className="p-3 rounded-lg border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 transition-all duration-200 text-left"
                       >
-                        Apply
-                      </Button>
-                    </div>
-                    
-                    {/* Template Preview */}
-                    {selectedTemplate && allTemplates[selectedTemplate] && (
-                      <div className={`
-                        p-3 rounded-lg border-2 text-sm
-                        ${allTemplates[selectedTemplate].templateColor || 'bg-gray-100 border-gray-300 text-gray-800'}
-                      `}>
-                        <div className="font-semibold">{selectedTemplate}</div>
-                        <div className="text-xs opacity-75">
-                          {allTemplates[selectedTemplate].type} • 
-                          {allTemplates[selectedTemplate].carpetArea} sq ft • 
-                          {allTemplates[selectedTemplate].balconies} balconies
+                        <div className="font-semibold flex items-center">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add New Template
                         </div>
-                      </div>
-                    )}
+                        <div className="text-xs opacity-75">
+                          Create a custom template with room layouts
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="form-label">Available Templates</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                    {Object.entries(allTemplates).map(([name, template]) => (
-                      <button
-                        key={name}
-                        onClick={() => setSelectedTemplate(name)}
-                        className={`
-                          p-2 rounded-lg border-2 text-xs text-left transition-all duration-200
-                          ${selectedTemplate === name 
-                            ? 'ring-2 ring-purple-500 ring-offset-1' 
-                            : 'hover:shadow-md'
-                          }
-                          ${template.templateColor || 'bg-gray-100 border-gray-300 text-gray-800'}
-                        `}
-                      >
-                        <div className="font-semibold truncate">{name}</div>
-                        <div className="opacity-75 truncate">{template.type}</div>
-                      </button>
-                    ))}
+                  <label className="form-label">Quick Actions</label>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTemplateBuilder(true)}
+                      icon={Plus}
+                      className="w-full"
+                    >
+                      Design Custom Layout
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={removeSelectedUnits}
+                      icon={Trash2}
+                      className="w-full"
+                    >
+                      Remove Selected Units
+                    </Button>
                   </div>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <label className="form-label">Quick Actions</label>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowTemplateBuilder(true)}
-                  >
-                    Design Layout
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={removeSelectedUnits}
-                  >
-                    Remove Selected
-                  </Button>
                 </div>
               </div>
             </div>
